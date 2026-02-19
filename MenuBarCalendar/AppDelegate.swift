@@ -13,6 +13,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var popover: NSPopover?
     private var calendarManager = CalendarManager()
     private var settingsWindow: NSWindow?
+    private var iconUpdateTimer: Timer?
     static let closePopoverNotification = Notification.Name("MenuBarClendarClosePopover")
     static let reopenPopoverNotification = Notification.Name("MenuBarClendarReopenPopover")
     
@@ -20,11 +21,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "calendar", accessibilityDescription: "Calendar")
+            button.image = makeStatusItemImage()
             button.action = #selector(togglePopover)
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
+        scheduleIconUpdate()
         
         popover = NSPopover()
         popover?.contentSize = NSSize(width: 600, height: 400)
@@ -180,4 +182,71 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func updateStatusBarIcon() {
+        guard let button = statusItem?.button else { return }
+        button.image = makeStatusItemImage()
+    }
+
+    private func scheduleIconUpdate() {
+        iconUpdateTimer?.invalidate()
+
+        updateStatusBarIcon()
+
+        let calendar = Calendar.current
+        if let nextMidnight = calendar.nextDate(
+            after: Date(),
+            matching: DateComponents(hour: 0, minute: 0, second: 0),
+            matchingPolicy: .nextTime,
+            direction: .forward
+        ) {
+            let timer = Timer(fireAt: nextMidnight, interval: 0, target: self, selector: #selector(iconUpdateTimerFired(_:)), userInfo: nil, repeats: false)
+            RunLoop.main.add(timer, forMode: .common)
+            iconUpdateTimer = timer
+        } else {
+            iconUpdateTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+                self?.updateStatusBarIcon()
+            }
+        }
+    }
+
+    @objc private func iconUpdateTimerFired(_ timer: Timer) {
+        updateStatusBarIcon()
+        scheduleIconUpdate()
+    }
+
+    private func makeStatusItemImage(for date: Date = Date()) -> NSImage {
+        let imageSize = NSSize(width: 20, height: 20)
+        let image = NSImage(size: imageSize)
+        image.lockFocus()
+        defer { image.unlockFocus() }
+
+        let assetImage = NSImage(named: NSImage.Name("CalendarFrame")) ?? NSImage(systemSymbolName: "calendar", accessibilityDescription: "Calendar")
+        let baseImage = assetImage ?? NSImage()
+        baseImage.draw(in: NSRect(origin: .zero, size: imageSize), from: .zero, operation: .sourceOver, fraction: 1.0)
+
+        let day = "\(Calendar.current.component(.day, from: date))"
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 10, weight: .semibold),
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: paragraph
+        ]
+        let attrString = NSAttributedString(string: day, attributes: attributes)
+        let textSize = attrString.size()
+        let textRect = NSRect(
+            x: (imageSize.width - textSize.width) / 2,
+            y: (imageSize.height - textSize.height) / 2 - 1,
+            width: textSize.width,
+            height: textSize.height
+        )
+        attrString.draw(in: textRect)
+
+        image.isTemplate = true
+        return image
+    }
+
+    deinit {
+        iconUpdateTimer?.invalidate()
+    }
 }

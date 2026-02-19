@@ -86,7 +86,8 @@ struct EventsListView: View {
                 }
                 .padding(.vertical, 8)
             }
-            .frame(maxHeight: 200)
+            .frame(minHeight: 300)
+            .frame(maxHeight: 400)
             .onAppear {
                 scrollToCurrentEvent(proxy: proxy)
             }
