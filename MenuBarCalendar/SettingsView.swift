@@ -1,6 +1,8 @@
 //
 //  SettingsView.swift
+//  parts taken from https://github.com/harryfliu
 //
+
 
 import SwiftUI
 import EventKit
@@ -9,26 +11,24 @@ struct SettingsView: View {
     @AppStorage("keepWindowOpen") private var keepWindowOpen = false
     @Binding var showSettings: Bool
     @ObservedObject var calendarManager: CalendarManager
-    
+
     var body: some View {
         Form {
-            
-            Section("Calendars") {
-                // Calendars grouped by source
-                VStack() {
+            Section(NSLocalizedString("SettingsCalendars", comment: "")) {
+                VStack {
                     CalendarsListView(calendarManager: calendarManager)
-                    Text("Select Calendars to show in the menubar")
-                        .font(.system(size: 12))
+                    Text(NSLocalizedString("SettingsCalendarsHint", comment: ""))
+                        .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .padding(.top, 4)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            
-            Section("Privacy") {
+
+            Section(NSLocalizedString("SettingsEvents", comment: "")) {
                 SettingsRowView(
                     icon: "lock.shield",
-                    title: "Calendar Privacy Settings",
+                    title: NSLocalizedString("SettingsCalendarPrivacy", comment: ""),
                     action: {
                         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
                             NSWorkspace.shared.open(url)
@@ -37,13 +37,11 @@ struct SettingsView: View {
                 )
             }
 
-            Section("General") {
-                Toggle("Keep Window Open", isOn: $keepWindowOpen)
+            Section(NSLocalizedString("SettingsGeneral", comment: "")) {
+                Toggle(NSLocalizedString("SettingsKeepWindowOpen", comment: ""), isOn: $keepWindowOpen)
             }
         }
-        .formStyle(.grouped)
         .padding(20)
-        .frame(width: 520)
     }
 }
 
@@ -74,7 +72,6 @@ struct CalendarsListView: View {
             ForEach(groupedCalendars, id: \.0) { sourceName, calendars in
                 VStack(alignment: .leading, spacing: 4) {
                     Text(sourceName)
-//                        .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.secondary)
 
                     VStack(spacing: 0) {
@@ -118,8 +115,8 @@ struct CalendarToggleRow: View {
                     }
                 }
                 .focusable(false)
-                .accessibility(label: Text("\(calendar.title) calendar"))
-                    
+                .accessibility(label: Text(String(format: NSLocalizedString("CalendarAccessibilityLabel", comment: ""), calendar.title)))
+
                 Spacer()
             }
             .padding(.horizontal, 10)

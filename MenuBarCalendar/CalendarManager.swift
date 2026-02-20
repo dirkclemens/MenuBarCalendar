@@ -1,5 +1,7 @@
 //
-//  CalendarManager.swift
+// originally created by https://github.com/harryfliu and Claude Code
+//    https://github.com/harryfliu/itsybitsycal/blob/main/Itsybitsycal/CalendarManager.swift
+//
 //  tccutil reset Calendar
 //
 
@@ -157,6 +159,7 @@ class CalendarManager: ObservableObject {
             UserDefaults.standard.set(customDatetimePattern, forKey: "customDatetimePattern")
         }
     }
+
 
     /// Trigger to notify views to scroll to current event (changes value to trigger)
     @Published var scrollToCurrentEventTrigger: UUID = UUID()

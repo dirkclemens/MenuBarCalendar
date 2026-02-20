@@ -65,6 +65,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 // Read latest setting value.
                 let keepOpen = UserDefaults.standard.bool(forKey: "keepWindowOpen")
                 popover?.behavior = keepOpen ? .applicationDefined : .transient
+//                let anchorRect = popoverAnchorRect(for: button)
+                //popover?.show(relativeTo: anchorRect, of: button, preferredEdge: .minY)
                 popover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
                 popover?.contentViewController?.view.window?.makeKey()
                 DispatchQueue.main.async { [weak self] in
@@ -77,28 +79,40 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func configurePopoverWindow() {
         guard let window = popover?.contentViewController?.view.window else { return }
         window.styleMask.insert(.resizable)
-        window.minSize = NSSize(width: 420, height: 280)
+//        window.minSize = NSSize(width: 420, height: 280)
+        window.minSize = NSSize(width: 100, height: 100)
         window.setFrameAutosaveName("MenuBarClendarPopoverFrame")
         window.setFrameUsingName("xMenuBarAppPopoverFrame")
     }
 
+//    private func popoverAnchorRect(for button: NSStatusBarButton) -> NSRect {
+//        if let cell = button.cell as? NSButtonCell {
+//            let imageRect = cell.imageRect(forBounds: button.bounds)
+//            let midX = imageRect.midX
+//            return NSRect(x: midX - 1, y: 0, width: 2, height: button.bounds.height)
+//        }
+//
+//        let midX = button.bounds.midX
+//        return NSRect(x: midX - 1, y: 0, width: 2, height: button.bounds.height)
+//    }
+
     private func showMenu() {
         let menu = NSMenu()
 
-        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: NSLocalizedString("SettingsMenuTitle", comment: ""), action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
 
         menu.addItem(.separator())
 
-        let launchItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchOnLogin), keyEquivalent: "l")
+        let launchItem = NSMenuItem(title: NSLocalizedString("LaunchAtLoginMenuTitle", comment: ""), action: #selector(toggleLaunchOnLogin), keyEquivalent: "l")
         launchItem.state = isLaunchOnLoginEnabled() ? .on : .off
         launchItem.target = self
         menu.addItem(launchItem)
-        
+
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: NSLocalizedString("QuitMenuTitle", comment: ""), action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 
@@ -116,6 +130,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let button = statusItem?.button else { return }
         let keepOpen = UserDefaults.standard.bool(forKey: "keepWindowOpen")
         popover?.behavior = keepOpen ? .applicationDefined : .transient
+//        let anchorRect = popoverAnchorRect(for: button)
+//        popover?.show(relativeTo: anchorRect, of: button, preferredEdge: .minY)
         popover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover?.contentViewController?.view.window?.makeKey()
         DispatchQueue.main.async { [weak self] in

@@ -1,3 +1,8 @@
+//
+// originally created by https://github.com/harryfliu and Claude Code
+//    https://github.com/harryfliu/itsybitsycal/blob/main/Itsybitsycal/CalendarView.swift
+//
+
 import SwiftUI
 import EventKit
 
@@ -51,7 +56,7 @@ struct MonthLabelView: View {
 
     private var label: String {
         let f = DateFormatter()
-        f.dateFormat = "MMM yyyy"
+        f.dateFormat = "MMMM yyyy"
         return f.string(from: month)
     }
 
@@ -72,7 +77,7 @@ struct CalendarHeaderView: View {
 
     private var monthYearString: String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM yyyy"
+        formatter.dateFormat = "MMMM yyyy"
         return formatter.string(from: calendarManager.currentMonth)
     }
 
@@ -111,7 +116,7 @@ struct CalendarHeaderView: View {
                         .foregroundColor(keepWindowOpen ? .accentColor : .secondary)
                 }
                 .buttonStyle(NavButtonStyle())
-                .help(keepWindowOpen ? "Window stays open" : "Window closes on focus loss")
+                .help(keepWindowOpen ? NSLocalizedString("WindowStaysOpenHelp", comment: "") : NSLocalizedString("WindowClosesOnBlurHelp", comment: ""))
             }
         }
         .padding(.horizontal, 14)
@@ -130,46 +135,71 @@ struct NavButtonStyle: ButtonStyle {
     }
 }
 
+struct WeekRow {
+    let weekNumber: Int?
+    let dates: [Date?]
+}
+
 struct CalendarGridView: View {
     @ObservedObject var calendarManager: CalendarManager
     let month: Date
     @Binding var hoveredDate: Date?
 
-    // Start week on Monday
-    private let weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    private let weekNumberColumnWidth: CGFloat = 32
+    private var weekdays: [String] {
+        var calendar = Calendar.current
+        calendar.firstWeekday = 2 // Monday
+        let symbols = calendar.shortWeekdaySymbols
+        let shift = calendar.firstWeekday - 1
+        return Array(symbols[shift...] + symbols[..<shift])
+    }
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
 
     var body: some View {
+        let rows = weekRows()
+
         VStack(spacing: 4) {
-            // Weekday headers
             HStack(spacing: 0) {
+                Text(NSLocalizedString("WeekNumberHeader", comment: ""))
+                    .font(.system(size: 10, weight: .heavy))
+                    .foregroundColor(.secondary)
+                    .frame(width: weekNumberColumnWidth)
+
                 ForEach(Array(weekdays.enumerated()), id: \.offset) { index, day in
                     Text(String(day.prefix(1)))
                         .font(.system(size: 10, weight: .heavy))
-                        .foregroundColor(index >= 5 ? .red.opacity(0.8) : .secondary) // Sat/Sun are now indexes 5 and 6
+                        .foregroundColor(index >= 5 ? .red.opacity(0.8) : .secondary)
                         .frame(maxWidth: .infinity)
                 }
             }
             .padding(.horizontal, 10)
 
-            // Calendar days
-            LazyVGrid(columns: columns, spacing: 2) {
-                ForEach(Array(daysInMonth().enumerated()), id: \.offset) { index, date in
-                    if let date = date {
-                        DayCell(
-                            date: date,
-                            calendarManager: calendarManager,
-                            isHovered: hoveredDate == date
-                        )
-                        .onHover { hovering in
-                            hoveredDate = hovering ? date : nil
+            VStack(spacing: 2) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, week in
+                    HStack(spacing: 0) {
+                        WeekNumberView(number: week.weekNumber)
+                            .frame(width: weekNumberColumnWidth)
+
+                        ForEach(Array(week.dates.enumerated()), id: \.offset) { _, date in
+                            if let date = date {
+                                DayCell(
+                                    date: date,
+                                    calendarManager: calendarManager,
+                                    isHovered: hoveredDate == date
+                                )
+                                .onHover { hovering in
+                                    hoveredDate = hovering ? date : nil
+                                }
+                                .onTapGesture {
+                                    calendarManager.selectedDate = date
+                                }
+                                .frame(maxWidth: .infinity)
+                            } else {
+                                Color.clear
+                                    .frame(height: 32)
+                                    .frame(maxWidth: .infinity)
+                            }
                         }
-                        .onTapGesture {
-                            calendarManager.selectedDate = date
-                        }
-                    } else {
-                        Color.clear
-                            .frame(height: 32)
                     }
                 }
             }
@@ -204,6 +234,34 @@ struct CalendarGridView: View {
         days.append(contentsOf: Array(repeating: nil, count: trailingDays))
 
         return days
+    }
+
+    private func weekRows() -> [WeekRow] {
+        let calendar = Calendar.current
+        let dates = daysInMonth()
+
+        var rows: [WeekRow] = []
+        for chunkStart in stride(from: 0, to: dates.count, by: 7) {
+            let end = min(chunkStart + 7, dates.count)
+            let rowDates = Array(dates[chunkStart..<end])
+            let weekNumber = rowDates.first(where: { $0 != nil }).flatMap {
+                calendar.component(.weekOfYear, from: $0!)
+            }
+            rows.append(WeekRow(weekNumber: weekNumber, dates: rowDates))
+        }
+
+        return rows
+    }
+}
+
+struct WeekNumberView: View {
+    let number: Int?
+
+    var body: some View {
+        Text(number.map { "\($0)" } ?? "-")
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(.secondary)
+            .contentShape(Rectangle())
     }
 }
 
@@ -297,4 +355,3 @@ struct EventDotsView: View {
         .frame(height: 4)
     }
 }
-

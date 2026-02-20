@@ -1,23 +1,34 @@
+//
+// originally created by https://github.com/harryfliu and Claude Code
+//    https://github.com/harryfliu/itsybitsycal/blob/main/Itsybitsycal/EventsListView.swift
+//
+
 import SwiftUI
 import EventKit
 
 struct EventsListView: View {
     @ObservedObject var calendarManager: CalendarManager
 
-    private var groupedEvents: [(String, String, [EKEvent])] {
-        var result: [(String, String, [EKEvent])] = []
+    private struct DayGroup: Identifiable {
+        let id: Date
+        let dayLabel: String
+        let dateLabel: String
+        let events: [EKEvent]
+    }
+
+    private var groupedEvents: [DayGroup] {
+        var result: [DayGroup] = []
         let calendar = Calendar.current
 
-        // Get events for the next 7 days starting from selected date
         var currentDate = calendarManager.selectedDate
-        let endDate = calendar.date(byAdding: .day, value: 7, to: currentDate)!
+        let endDate = calendar.date(byAdding: .day, value: 21, to: currentDate)!
 
         while currentDate < endDate {
             let dayEvents = calendarManager.events(for: currentDate)
             if !dayEvents.isEmpty {
                 let dayLabel = dayLabelFor(date: currentDate)
                 let dateLabel = dateLabelFor(date: currentDate)
-                result.append((dayLabel, dateLabel, dayEvents))
+                result.append(DayGroup(id: currentDate, dayLabel: dayLabel, dateLabel: dateLabel, events: dayEvents))
             }
             currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
         }
@@ -28,11 +39,12 @@ struct EventsListView: View {
     private func dayLabelFor(date: Date) -> String {
         let calendar = Calendar.current
         if calendar.isDateInToday(date) {
-            return "Today"
+            return NSLocalizedString("DayLabelToday", comment: "")
         } else if calendar.isDateInTomorrow(date) {
-            return "Tomorrow"
+            return NSLocalizedString("DayLabelTomorrow", comment: "")
         } else {
             let formatter = DateFormatter()
+            formatter.locale = Locale.current
             formatter.dateFormat = "EEEE"
             return formatter.string(from: date)
         }
@@ -40,7 +52,8 @@ struct EventsListView: View {
 
     private func dateLabelFor(date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
+        formatter.locale = Locale.current
+        formatter.dateStyle = .long
         return formatter.string(from: date)
     }
 
@@ -49,8 +62,8 @@ struct EventsListView: View {
         let now = Date()
         var allEvents: [EKEvent] = []
 
-        for (_, _, events) in groupedEvents {
-            allEvents.append(contentsOf: events)
+        for dayGroup in groupedEvents {
+            allEvents.append(contentsOf: dayGroup.events)
         }
 
         // First, look for a currently happening event
@@ -75,11 +88,11 @@ struct EventsListView: View {
                     } else if groupedEvents.isEmpty {
                         EmptyEventsView()
                     } else {
-                        ForEach(groupedEvents, id: \.0) { dayLabel, dateLabel, events in
+                        ForEach(groupedEvents) { group in
                             DaySectionView(
-                                dayLabel: dayLabel,
-                                dateLabel: dateLabel,
-                                events: events
+                                dayLabel: group.dayLabel,
+                                dateLabel: group.dateLabel,
+                                events: group.events
                             )
                         }
                     }
@@ -114,10 +127,10 @@ struct NoAccessView: View {
             Image(systemName: "calendar.badge.exclamationmark")
                 .font(.system(size: 24))
                 .foregroundColor(.secondary)
-            Text("Calendar access required")
+            Text(NSLocalizedString("CalendarAccessRequired", comment: ""))
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
-            Button("Open System Settings") {
+            Button(NSLocalizedString("OpenSystemSettings", comment: "")) {
                 if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
                     NSWorkspace.shared.open(url)
                 }
@@ -131,7 +144,7 @@ struct NoAccessView: View {
 
 struct EmptyEventsView: View {
     var body: some View {
-        Text("No upcoming events")
+        Text(NSLocalizedString("NoUpcomingEvents", comment: ""))
             .font(.system(size: 12))
             .foregroundColor(.secondary)
             .frame(maxWidth: .infinity)
@@ -211,7 +224,7 @@ struct EventRowView: View {
                 .opacity(isPastEvent ? 0.5 : 1.0)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(event.title ?? "Untitled")
+                Text(event.title ?? NSLocalizedString("UntitledEvent", comment: ""))
                     .font(.system(size: 12))
                     .lineLimit(1)
                     .foregroundColor(isPastEvent ? .secondary : .primary)

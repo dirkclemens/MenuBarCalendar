@@ -1,6 +1,6 @@
 {
   "fill" : {
-    "automatic-gradient" : "extended-gray:0.25000,1.00000"
+    "solid" : "extended-gray:1.00000,1.00000"
   },
   "groups" : [
     {
@@ -8,8 +8,8 @@
       "hidden" : false,
       "layers" : [
         {
-          "image-name" : "Ohne Titel 3 2.svg",
-          "name" : "Ohne Titel 3 2"
+          "image-name" : "calendar.svg",
+          "name" : "calendar"
         }
       ],
       "lighting" : "combined",
