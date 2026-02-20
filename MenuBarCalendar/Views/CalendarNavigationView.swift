@@ -20,38 +20,29 @@ struct CalendarNavigationView: View {
 
             Spacer()
 
-            HStack(spacing: 4) {
+            HStack(spacing: 8) {
                 Button(action: { calendarManager.previousMonth() }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 11, weight: .medium))
                 }
-                .buttonStyle(NavButtonStyle())
+                .buttonStyle(.glass)
 
                 Button(action: { calendarManager.goToToday() }) {
                     Circle()
                         .fill(Color.primary.opacity(0.6))
-                        .frame(width: 8, height: 8)
+                        .frame(width: 11, height: 11)
                 }
-                .buttonStyle(NavButtonStyle())
+                .buttonStyle(.glass)
 
                 Button(action: { calendarManager.nextMonth() }) {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .medium))
                 }
-                .buttonStyle(NavButtonStyle())
+                .buttonStyle(.glass)
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 10)
         .padding(.vertical, 10)
     }
 }
 
-struct NavButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .frame(width: 20, height: 20)
-            .contentShape(Circle())
-            .cornerRadius(16)
-            .opacity(configuration.isPressed ? 0.5 : 1.0)
-    }
-}

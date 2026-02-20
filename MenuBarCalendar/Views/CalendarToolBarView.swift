@@ -12,7 +12,8 @@ struct CalendarToolBarView: View {
                 Image(systemName: "gearshape")
                     .font(.system(size: 12))
             }
-            .buttonStyle(.plain)
+//            .buttonStyle(.plain)
+            .buttonStyle(.glass)
             .foregroundColor(.secondary)
             .help(NSLocalizedString("SettingsMenuTitle", comment: ""))
 
@@ -22,7 +23,8 @@ struct CalendarToolBarView: View {
                 Image(systemName: "power")
                     .font(.system(size: 12))
             }
-            .buttonStyle(.plain)
+//            .buttonStyle(.plain)
+            .buttonStyle(.glass)
             .foregroundColor(.secondary)
             .help(NSLocalizedString("QuitMenuTitle", comment: ""))
         }

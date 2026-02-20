@@ -60,21 +60,29 @@ struct EventRowView: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            openInCalendar()
-        }
-    }
-
-    private func openInCalendar() {
-        let calendarAppURL = URL(fileURLWithPath: "/System/Applications/Calendar.app")
-        NSWorkspace.shared.openApplication(
-            at: calendarAppURL,
-            configuration: NSWorkspace.OpenConfiguration()
-        ) { _, _ in
-            let interval = Int(self.event.startDate.timeIntervalSinceReferenceDate)
-            if let url = URL(string: "calshow:\(interval)") {
+            if let url = URL(string: generateEventURL(event: event)) {
                 NSLog("Opening Calendar URL: \(url)")
                 NSWorkspace.shared.open(url)
             }
         }
     }
+
+    private func generateEventURL(event: EKEvent) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
+        formatter.timeZone = TimeZone.current
+
+        var dateComponent = ""
+        if event.hasRecurrenceRules {
+            if let startDate = event.startDate {
+                formatter.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
+                formatter.timeZone = TimeZone.current
+                if !event.isAllDay {
+                    formatter.timeZone = TimeZone(secondsFromGMT: 0)
+                }
+                dateComponent = "/\(formatter.string(from: startDate))"
+            }
+        }
+        return "ical://ekevent\(dateComponent)/\(event.calendarItemIdentifier)?method=show&options=more"
+    }    
 }

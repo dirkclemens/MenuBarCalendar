@@ -20,6 +20,7 @@ struct NoAccessView: View {
                 }
             }
             .font(.system(size: 11))
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
