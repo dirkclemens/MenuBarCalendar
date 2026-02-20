@@ -44,10 +44,42 @@ struct CalendarView: View {
             
             // Events list
             EventsListView(calendarManager: calendarManager)
+
+            Divider().frame(height: 1).background(.windowBackground)
+
+            // Bottom menu bar
+            CalendarMenuBarView()
         }
         .padding(10)
         .frame(maxWidth: 400, maxHeight: .infinity)
         .background(.windowBackground)
+    }
+}
+
+struct CalendarMenuBarView: View {
+
+    var body: some View {
+        HStack {
+            Button(action: { AppDelegate.instance.openSettings() }) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 12))
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.secondary)
+            .help(NSLocalizedString("SettingsMenuTitle", comment: ""))
+
+            Spacer()
+
+            Button(action: { NSApp.terminate(nil) }) {
+                Image(systemName: "power")
+                    .font(.system(size: 12))
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.secondary)
+            .help(NSLocalizedString("QuitMenuTitle", comment: ""))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
     }
 }
 
@@ -73,7 +105,6 @@ struct MonthLabelView: View {
 
 struct CalendarHeaderView: View {
     @ObservedObject var calendarManager: CalendarManager
-    @AppStorage("keepWindowOpen") private var keepWindowOpen: Bool = false
 
     private var monthYearString: String {
         let formatter = DateFormatter()
@@ -107,16 +138,6 @@ struct CalendarHeaderView: View {
                         .font(.system(size: 11, weight: .medium))
                 }
                 .buttonStyle(NavButtonStyle())
-                           
-                Spacer().frame(width: 16)
-                
-                Button(action: { keepWindowOpen.toggle() }) {
-                    Image(systemName: keepWindowOpen ? "pin.fill" : "pin")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(keepWindowOpen ? .accentColor : .secondary)
-                }
-                .buttonStyle(NavButtonStyle())
-                .help(keepWindowOpen ? NSLocalizedString("WindowStaysOpenHelp", comment: "") : NSLocalizedString("WindowClosesOnBlurHelp", comment: ""))
             }
         }
         .padding(.horizontal, 14)

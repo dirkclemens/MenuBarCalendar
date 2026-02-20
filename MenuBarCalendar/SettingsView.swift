@@ -8,7 +8,6 @@ import SwiftUI
 import EventKit
 
 struct SettingsView: View {
-    @AppStorage("keepWindowOpen") private var keepWindowOpen = false
     @Binding var showSettings: Bool
     @ObservedObject var calendarManager: CalendarManager
 
@@ -24,7 +23,14 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-
+            
+            Section(NSLocalizedString("SettingsGeneral", comment: "")) {
+                Toggle(NSLocalizedString("LaunchAtLoginMenuTitle", comment: ""), isOn: Binding(
+                    get: { AppDelegate.instance.isLaunchOnLoginEnabled() },
+                    set: { _ in AppDelegate.instance.toggleLaunchOnLogin() }
+                ))
+            }
+            
             Section(NSLocalizedString("SettingsEvents", comment: "")) {
                 SettingsRowView(
                     icon: "lock.shield",
@@ -36,12 +42,9 @@ struct SettingsView: View {
                     }
                 )
             }
-
-            Section(NSLocalizedString("SettingsGeneral", comment: "")) {
-                Toggle(NSLocalizedString("SettingsKeepWindowOpen", comment: ""), isOn: $keepWindowOpen)
-            }
         }
-        .padding(20)
+        .formStyle(.grouped)
+        .padding(2)
     }
 }
 
@@ -116,10 +119,11 @@ struct CalendarToggleRow: View {
                 }
                 .focusable(false)
                 .accessibility(label: Text(String(format: NSLocalizedString("CalendarAccessibilityLabel", comment: ""), calendar.title)))
-
+                .buttonSizing(.flexible) // macOS 26 API
+                
                 Spacer()
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 6)
             .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
