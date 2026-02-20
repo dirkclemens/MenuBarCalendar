@@ -8,13 +8,13 @@ import ServiceManagement
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     static private(set) var instance: AppDelegate!
-    private var calendarManager = CalendarManager()
+    var calendarManager: CalendarManager = CalendarManager()
     private var settingsWindow: NSWindow?
     private var iconUpdateTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppDelegate.instance = self
-        // no Dock Icon        
+        // no Dock Icon
         NSApp.setActivationPolicy(.accessory)
         scheduleIconUpdate()
     }

@@ -10,17 +10,6 @@ import EventKit
 import SwiftUI
 import Combine
 
-// MARK: - Event Creation Enums
-
-enum RecurrenceRule: String, CaseIterable {
-    case never = "Never"
-    case everyDay = "Every Day"
-    case everyWeek = "Every Week"
-    case everyTwoWeeks = "Every 2 Weeks"
-    case everyMonth = "Every Month"
-    case everyYear = "Every Year"
-}
-
 class CalendarManager: ObservableObject {
     let eventStore = EKEventStore()
 
@@ -48,30 +37,6 @@ class CalendarManager: ObservableObject {
         }
 
         handleAuthorization()
-    }
-
-    func currentOrNextEvent() -> EKEvent? {
-        let now = Date()
-        let calendar = Calendar.current
-
-        // Get today's events from enabled calendars
-        let todayEvents = events.filter { event in
-            calendar.isDateInToday(event.startDate) && isCalendarEnabled(event.calendar)
-        }.sorted { $0.startDate < $1.startDate }
-
-        // Find event that's currently happening or next upcoming
-        for event in todayEvents {
-            // Event is currently happening
-            if event.startDate <= now && event.endDate > now {
-                return event
-            }
-            // Event is upcoming today
-            if event.startDate > now {
-                return event
-            }
-        }
-
-        return nil
     }
 
     func isCalendarEnabled(_ calendar: EKCalendar) -> Bool {
@@ -158,13 +123,6 @@ class CalendarManager: ObservableObject {
         return events.filter { event in
             calendar.isDate(event.startDate, inSameDayAs: date) && isCalendarEnabled(event.calendar)
         }.sorted { $0.startDate < $1.startDate }
-    }
-
-    func hasEvents(on date: Date) -> Bool {
-        let calendar = Calendar.current
-        return events.contains { event in
-            calendar.isDate(event.startDate, inSameDayAs: date) && isCalendarEnabled(event.calendar)
-        }
     }
 
     func eventDots(for date: Date) -> [CGColor] {

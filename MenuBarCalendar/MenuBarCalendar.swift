@@ -14,6 +14,7 @@ struct MenuBarCalendarApp: App {
     var body: some Scene {
         MenuBarExtra {
             CalendarView(calendarManager: calendarManager)
+                .onAppear { appDelegate.calendarManager = calendarManager }
         } label: {
             if let image = AppDelegate.makeMenuBarImage() {
                 Image(nsImage: image)
@@ -22,6 +23,7 @@ struct MenuBarCalendarApp: App {
             }
         }
         .menuBarExtraStyle(.window)
+        
 
         Settings {
             SettingsView(showSettings: $showSettings, calendarManager: calendarManager)
