@@ -1,6 +1,7 @@
 //
-//  MenuBarCalendar.swift
-//  https://nilcoalescing.com/blog/BuildAMacOSMenuBarUtilityInSwiftUI/
+// MenuBarCalendarApp.swift
+//
+
 
 import SwiftUI
 

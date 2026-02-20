@@ -5,7 +5,6 @@
 //  tccutil reset Calendar
 //
 
-
 import Foundation
 import EventKit
 import SwiftUI

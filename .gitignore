@@ -1,4 +1,6 @@
+.gitignore
 *.svg
+*.png
 *.py
 codex_resume.sh
 
