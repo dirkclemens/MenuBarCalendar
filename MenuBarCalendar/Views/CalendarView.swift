@@ -13,7 +13,7 @@ struct CalendarView: View {
         VStack(spacing: 0) {
             CalendarNavigationView(calendarManager: calendarManager)
 
-            Divider().frame(height: 1).background(.windowBackground)
+//            Divider().frame(height: 1).background(.windowBackground)
 
             CalendarGridView(
                 calendarManager: calendarManager,
@@ -21,11 +21,11 @@ struct CalendarView: View {
                 hoveredDate: $hoveredDate
             )
 
-            Divider().frame(height: 1).background(.windowBackground)
+//            Divider().frame(height: 1).background(.windowBackground)
 
             EventsListView(calendarManager: calendarManager)
 
-            Divider().frame(height: 1).background(.windowBackground)
+//            Divider().frame(height: 1).background(.windowBackground)
 
             CalendarToolBarView()
         }

@@ -92,9 +92,23 @@ class CalendarManager: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             self?.hasAccess = granted
             if granted {
+                self?.refreshToday()
                 self?.fetchCalendars()
                 self?.fetchEvents()
             }
+        }
+    }
+
+    /// Reset selected date and current month to today — call on every activation.
+    func refreshToday() {
+        let today = Date()
+        let calendar = Calendar.current
+        // Only reset if the stored date is not today (avoids unnecessary redraws)
+        if !calendar.isDateInToday(selectedDate) {
+            selectedDate = today
+        }
+        if !calendar.isDate(currentMonth, equalTo: today, toGranularity: .month) {
+            currentMonth = today
         }
     }
 

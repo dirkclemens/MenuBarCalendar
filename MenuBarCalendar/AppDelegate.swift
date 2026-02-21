@@ -21,6 +21,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         calendarManager.refreshAuthorization()
+        calendarManager.refreshToday()
     }
 
     // MARK: - Settings window
@@ -116,6 +117,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func iconUpdateTimerFired() {
+        calendarManager.refreshToday()
+        calendarManager.fetchEvents()
         scheduleIconUpdate()
     }
 
