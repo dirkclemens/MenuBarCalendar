@@ -27,7 +27,7 @@ A lightweight macOS menu bar app that shows a calendar and your upcoming events 
 
 ## Screenshots
 
-> _Add screenshots here_
+![screenshot](./screenshot.jpg)
 
 ---
 
