@@ -5,23 +5,46 @@
   "groups" : [
     {
       "blur-material" : null,
-      "hidden" : false,
       "layers" : [
         {
-          "image-name" : "calendar.svg",
-          "name" : "calendar"
+          "glass" : false,
+          "image-name" : "12.png",
+          "name" : "12"
         }
       ],
-      "lighting" : "combined",
-      "name" : "Group",
-      "opacity" : 1,
       "shadow" : {
-        "kind" : "layer-color",
+        "kind" : "neutral",
         "opacity" : 0.5
       },
-      "specular" : false,
+      "specular" : true,
       "translucency" : {
-        "enabled" : false,
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "glass" : false,
+          "image-name" : "Rechteck.jpg",
+          "name" : "Rechteck",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              31.859375,
+              -398.1640625
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
         "value" : 0.5
       }
     }

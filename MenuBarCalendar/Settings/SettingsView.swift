@@ -9,6 +9,7 @@ import EventKit
 struct SettingsView: View {
     @Binding var showSettings: Bool
     @ObservedObject var calendarManager: CalendarManager
+    @AppStorage("showNextEventInMenuBar") private var showNextEventInMenuBar = true
 
     var body: some View {
         Form {
@@ -28,6 +29,16 @@ struct SettingsView: View {
                     get: { AppDelegate.instance.isLaunchOnLoginEnabled() },
                     set: { _ in AppDelegate.instance.toggleLaunchOnLogin() }
                 ))
+                Toggle(NSLocalizedString("SettingsShowNextEvent", comment: ""), isOn: Binding(
+                    get: { UserDefaults.standard.object(forKey: "showNextEventInMenuBar") as? Bool ?? true },
+                    set: { UserDefaults.standard.set($0, forKey: "showNextEventInMenuBar") }
+                ))
+                if (showNextEventInMenuBar) {
+                    Toggle(NSLocalizedString("SettingsShowAllDayEvents", comment: ""), isOn: Binding(
+                        get: { UserDefaults.standard.bool(forKey: "showAllDayEventsInMenuBar") },
+                        set: { UserDefaults.standard.set($0, forKey: "showAllDayEventsInMenuBar") }
+                    ))
+                }
             }
             
             Section(NSLocalizedString("SettingsEvents", comment: "")) {

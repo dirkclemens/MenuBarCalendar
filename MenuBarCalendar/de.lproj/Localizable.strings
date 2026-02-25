@@ -17,3 +17,5 @@
 "QuitMenuTitle" = "Beenden";
 "CalendarAccessibilityLabel" = "Kalender %@";
 "UntitledEvent" = "Ohne Titel";
+"SettingsShowNextEvent" = "Nächstes Ereignis in Menüleiste anzeigen";
+"SettingsShowAllDayEvents" = "Ganztägige Ereignisse in Menüleiste einbeziehen";

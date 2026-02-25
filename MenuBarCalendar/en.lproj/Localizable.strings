@@ -17,3 +17,5 @@
 "QuitMenuTitle" = "Quit";
 "CalendarAccessibilityLabel" = "%@ calendar";
 "UntitledEvent" = "Untitled";
+"SettingsShowNextEvent" = "Show next event in menu bar";
+"SettingsShowAllDayEvents" = "Include all-day events in menu bar";

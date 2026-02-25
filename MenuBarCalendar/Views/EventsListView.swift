@@ -19,7 +19,7 @@ struct EventsListView: View {
         var result: [DayGroup] = []
         let calendar = Calendar.current
         var currentDate = calendarManager.selectedDate
-        let endDate = calendar.date(byAdding: .day, value: 21, to: currentDate)!
+        let endDate = calendar.date(byAdding: .day, value: 7, to: currentDate)!
 
         while currentDate < endDate {
             let dayEvents = calendarManager.events(for: currentDate)
@@ -57,6 +57,17 @@ struct EventsListView: View {
         return formatter.string(from: date)
     }
 
+    private var targetGroupId: Date? {
+        let now = Date()
+        let allEvents = groupedEvents.flatMap { $0.events }
+        let targetEvent = allEvents.first(where: { $0.startDate <= now && $0.endDate > now })
+            ?? allEvents.first(where: { $0.startDate > now })
+        guard let target = targetEvent else { return nil }
+        return groupedEvents.first(where: { group in
+            group.events.contains { $0.eventIdentifier == target.eventIdentifier }
+        })?.id
+    }
+
     private var targetEventId: String? {
         let now = Date()
         let allEvents = groupedEvents.flatMap { $0.events }
@@ -79,6 +90,7 @@ struct EventsListView: View {
                                 dateLabel: group.dateLabel,
                                 events: group.events
                             )
+                            .id(group.id)
                         }
                     }
                 }
@@ -93,10 +105,16 @@ struct EventsListView: View {
     }
 
     private func scrollToCurrentEvent(proxy: ScrollViewProxy) {
+        // Step 1: scroll the day section header into view instantly
+        if let groupId = targetGroupId {
+            proxy.scrollTo(groupId, anchor: .top)
+        }
+        // Step 2: after the header is rendered, animate to the target event
+        // using a top-biased anchor so the day header remains visible above it
         guard let eventId = targetEventId else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                proxy.scrollTo(eventId, anchor: .top)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.easeInOut(duration: 0.4)) {
+                proxy.scrollTo(eventId, anchor: UnitPoint(x: 0.5, y: 0.15))
             }
         }
     }

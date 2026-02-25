@@ -11,17 +11,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var calendarManager: CalendarManager = CalendarManager()
     private var settingsWindow: NSWindow?
     private var iconUpdateTimer: Timer?
+    private var eventRefreshTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppDelegate.instance = self
         // no Dock Icon
         NSApp.setActivationPolicy(.accessory)
         scheduleIconUpdate()
+        scheduleEventRefresh()
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(systemDidWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
         calendarManager.refreshAuthorization()
         calendarManager.refreshToday()
+        calendarManager.fetchEvents()
     }
 
     // MARK: - Settings window
@@ -37,10 +46,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.setContentSize(NSSize(width: 400, height: 500))
             window.center()
             window.isReleasedWhenClosed = false
+            window.level = .floating // keeps the window above normal windows (like Xcode) at all times
             settingsWindow = window
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        settingsWindow?.orderFrontRegardless() // brings it to the front even if another app is currently active
+        NSApp.activate(ignoringOtherApps: true) // ensures the app itself gets focus
     }
 
     // MARK: - Launch at login
@@ -117,6 +128,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func iconUpdateTimerFired() {
+        NSLog("iconUpdateTimerFired at \(Date())")
+        calendarManager.refreshToday()
+        calendarManager.fetchEvents()
+        scheduleIconUpdate()
+    }
+
+    // MARK: - 15-minute event refresh
+    private func scheduleEventRefresh() {
+        eventRefreshTimer?.invalidate()
+        eventRefreshTimer = Timer.scheduledTimer(withTimeInterval: 15 * 60, repeats: true) { [weak self] _ in
+            self?.calendarManager.fetchEvents()
+        }
+        RunLoop.main.add(eventRefreshTimer!, forMode: .common)
+    }
+
+    @objc private func systemDidWake(_ notification: Notification) {
         calendarManager.refreshToday()
         calendarManager.fetchEvents()
         scheduleIconUpdate()
@@ -124,5 +151,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     deinit {
         iconUpdateTimer?.invalidate()
+        eventRefreshTimer?.invalidate()
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 }

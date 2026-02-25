@@ -24,9 +24,29 @@ class CalendarManager: ObservableObject {
             fetchEvents()
         }
     }
-
     /// Trigger to notify views to scroll to current event (changes value to trigger)
     @Published var scrollToCurrentEventTrigger: UUID = UUID()
+
+    /// The current or next upcoming event today, for display in the menu bar label.
+    @Published var nextEvent: EKEvent?
+
+    /// Current date — updated at midnight so the menu bar icon redraws automatically.
+    @Published var today: Date = Date()
+
+    private func updateNextEvent() {
+        let now = Date()
+        let calendar = Calendar.current
+        let showAllDay = UserDefaults.standard.bool(forKey: "showAllDayEventsInMenuBar")
+        nextEvent = events
+            .filter {
+                isCalendarEnabled($0.calendar)
+                && calendar.isDateInToday($0.startDate)
+                && $0.endDate > now
+                && (!$0.isAllDay || showAllDay)
+            }
+            .sorted { $0.startDate < $1.startDate }
+            .first
+    }
 
     init() {
         // Load saved calendar selections or default to all enabled
@@ -101,14 +121,15 @@ class CalendarManager: ObservableObject {
 
     /// Reset selected date and current month to today — call on every activation.
     func refreshToday() {
-        let today = Date()
+        let now = Date()
         let calendar = Calendar.current
-        // Only reset if the stored date is not today (avoids unnecessary redraws)
+        NSLog("refreshToday fired at \(now)")
+        today = now
         if !calendar.isDateInToday(selectedDate) {
-            selectedDate = today
+            selectedDate = now
         }
-        if !calendar.isDate(currentMonth, equalTo: today, toGranularity: .month) {
-            currentMonth = today
+        if !calendar.isDate(currentMonth, equalTo: now, toGranularity: .month) {
+            currentMonth = now
         }
     }
 
@@ -128,8 +149,13 @@ class CalendarManager: ObservableObject {
             return
         }
 
-        let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+        // Also ensure the 7-day EventsListView window is always covered
+        let listEnd = calendar.date(byAdding: .day, value: 7, to: selectedDate) ?? endDate
+        let fetchEnd = max(endDate, listEnd)
+
+        let predicate = eventStore.predicateForEvents(withStart: startDate, end: fetchEnd, calendars: nil)
         events = eventStore.events(matching: predicate)
+        updateNextEvent()
     }
 
     func events(for date: Date) -> [EKEvent] {
