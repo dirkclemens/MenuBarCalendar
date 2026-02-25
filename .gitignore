@@ -5,4 +5,5 @@
 *.py
 *.pxd
 *.sh
+/ignore/
 !screenshot.jpg
