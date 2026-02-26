@@ -32,9 +32,9 @@ struct MenuBarCalendarApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Settings {
-            SettingsView(showSettings: $showSettings, calendarManager: calendarManager)
-        }
+//        Settings {
+//            SettingsView(showSettings: $showSettings, calendarManager: calendarManager)
+//        }
     }
 }
 
