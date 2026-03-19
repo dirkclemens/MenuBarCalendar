@@ -8,7 +8,7 @@ import ServiceManagement
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     static private(set) var instance: AppDelegate!
-    var calendarManager: CalendarManager = CalendarManager()
+    var calendarManager: CalendarManager = .shared
     private var settingsWindow: NSWindow?
     private var iconUpdateTimer: Timer?
     private var eventRefreshTimer: Timer?
@@ -37,8 +37,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func openSettings() {
         if settingsWindow == nil {
-            let showSettings = Binding<Bool>(get: { true }, set: { [weak self] _ in self?.settingsWindow?.close() })
-            let view = SettingsView(showSettings: showSettings, calendarManager: calendarManager)
+            let view = SettingsView(calendarManager: calendarManager)
             let controller = NSHostingController(rootView: view)
             let window = NSWindow(contentViewController: controller)
             window.title = NSLocalizedString("SettingsMenuTitle", comment: "")

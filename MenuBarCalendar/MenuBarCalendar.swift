@@ -9,14 +9,12 @@ import EventKit
 @main
 struct MenuBarCalendarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject private var calendarManager = CalendarManager()
-    @State private var showSettings = false
+    @StateObject private var calendarManager = CalendarManager.shared
     @AppStorage("showNextEventInMenuBar") private var showNextEventInMenuBar = true
 
     var body: some Scene {
         MenuBarExtra {
-            CalendarView(calendarManager: calendarManager)
-                .onAppear { appDelegate.calendarManager = calendarManager }
+            ContentView(calendarManager: calendarManager)
         } label: {
             HStack(spacing: 4) {
                 if let image = AppDelegate.makeMenuBarImage(for: calendarManager.today) {
@@ -31,10 +29,6 @@ struct MenuBarCalendarApp: App {
             }
         }
         .menuBarExtraStyle(.window)
-
-//        Settings {
-//            SettingsView(showSettings: $showSettings, calendarManager: calendarManager)
-//        }
     }
 }
 

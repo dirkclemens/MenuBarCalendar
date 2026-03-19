@@ -11,6 +11,8 @@ import SwiftUI
 import Combine
 
 class CalendarManager: ObservableObject {
+    static let shared = CalendarManager()
+
     let eventStore = EKEventStore()
 
     @Published var events: [EKEvent] = []
@@ -46,6 +48,10 @@ class CalendarManager: ObservableObject {
             }
             .sorted { $0.startDate < $1.startDate }
             .first
+    }
+
+    func refreshNextEvent() {
+        updateNextEvent()
     }
 
     init() {
@@ -149,8 +155,10 @@ class CalendarManager: ObservableObject {
             return
         }
 
-        // Also ensure the 7-day EventsListView window is always covered
-        let listEnd = calendar.date(byAdding: .day, value: 7, to: selectedDate) ?? endDate
+        // Also ensure the EventsListView window is always covered
+        let configuredRange = UserDefaults.standard.integer(forKey: "eventsListDaysRange")
+        let days = configuredRange > 0 ? configuredRange : 7
+        let listEnd = calendar.date(byAdding: .day, value: days, to: selectedDate) ?? endDate
         let fetchEnd = max(endDate, listEnd)
 
         let predicate = eventStore.predicateForEvents(withStart: startDate, end: fetchEnd, calendars: nil)

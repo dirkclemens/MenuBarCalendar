@@ -19,3 +19,6 @@
 "UntitledEvent" = "Ohne Titel";
 "SettingsShowNextEvent" = "Nächstes Ereignis in Menüleiste anzeigen";
 "SettingsShowAllDayEvents" = "Ganztägige Ereignisse in Menüleiste einbeziehen";
+"SettingsEventsRangeFormat" = "Nächste %d Tage anzeigen";
+"AppTitle" = "Kalender";
+"Settings" = "Einstellungen";

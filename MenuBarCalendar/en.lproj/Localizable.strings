@@ -19,3 +19,6 @@
 "UntitledEvent" = "Untitled";
 "SettingsShowNextEvent" = "Show next event in menu bar";
 "SettingsShowAllDayEvents" = "Include all-day events in menu bar";
+"SettingsEventsRangeFormat" = "Show next %d days";
+"AppTitle" = "Calendar";
+"Settings" = "Settings";

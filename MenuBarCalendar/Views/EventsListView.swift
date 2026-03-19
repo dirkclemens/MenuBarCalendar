@@ -7,6 +7,7 @@ import EventKit
 
 struct EventsListView: View {
     @ObservedObject var calendarManager: CalendarManager
+    @AppStorage("eventsListDaysRange") private var eventsListDaysRange = 7
 
     private struct DayGroup: Identifiable {
         let id: Date
@@ -19,7 +20,8 @@ struct EventsListView: View {
         var result: [DayGroup] = []
         let calendar = Calendar.current
         var currentDate = calendarManager.selectedDate
-        let endDate = calendar.date(byAdding: .day, value: 7, to: currentDate)!
+        let days = max(1, eventsListDaysRange)
+        let endDate = calendar.date(byAdding: .day, value: days, to: currentDate)!
 
         while currentDate < endDate {
             let dayEvents = calendarManager.events(for: currentDate)

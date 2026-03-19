@@ -11,32 +11,25 @@ struct CalendarSelectionView: View {
     let onToggle: () -> Void
 
     var body: some View {
-        Button(action: onToggle) {
+        Toggle(isOn: Binding<Bool>(
+            get: { isEnabled },
+            set: { _ in onToggle() }
+        )) {
             HStack(spacing: 8) {
-                Toggle(isOn: Binding<Bool>(
-                    get: { isEnabled },
-                    set: { _ in onToggle() }
-                )) {
-                    HStack(spacing: 8) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color(cgColor: calendar.cgColor))
-                            .frame(width: 12, height: 12)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color(cgColor: calendar.cgColor))
+                    .frame(width: 12, height: 12)
 
-                        Text(calendar.title)
-                            .font(.system(size: 12))
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                    }
-                }
-                .focusable(false)
-                .accessibility(label: Text(String(format: NSLocalizedString("CalendarAccessibilityLabel", comment: ""), calendar.title)))
-
-                Spacer()
+                Text(calendar.title)
+                    .font(.system(size: 12))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .focusable(false)
+        .accessibility(label: Text(String(format: NSLocalizedString("CalendarAccessibilityLabel", comment: ""), calendar.title)))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
     }
 }
