@@ -9,6 +9,14 @@ struct DaySectionView: View {
     let dayLabel: String
     let dateLabel: String
     let events: [EKEvent]
+    let reminders: [EKReminder]
+
+    init(dayLabel: String, dateLabel: String, events: [EKEvent], reminders: [EKReminder] = []) {
+        self.dayLabel = dayLabel
+        self.dateLabel = dateLabel
+        self.events = events
+        self.reminders = reminders
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -26,6 +34,10 @@ struct DaySectionView: View {
             ForEach(events, id: \.eventIdentifier) { event in
                 EventRowView(event: event)
                     .id(event.eventIdentifier)
+            }
+            
+            ForEach(reminders, id: \.calendarItemIdentifier) { reminder in
+                ReminderRowView(reminder: reminder)
             }
         }
     }

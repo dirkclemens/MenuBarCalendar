@@ -22,3 +22,7 @@
 "SettingsEventsRangeFormat" = "Show next %d days";
 "AppTitle" = "Calendar";
 "Settings" = "Settings";
+"SettingsReminders" = "Reminders";
+"SettingsShowReminders" = "Show reminders";
+"SettingsRemindersPrivacy" = "Reminders Privacy Settings";
+"UntitledReminder" = "Untitled";

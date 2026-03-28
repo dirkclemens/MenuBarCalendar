@@ -8,12 +8,14 @@ import EventKit
 struct EventsListView: View {
     @ObservedObject var calendarManager: CalendarManager
     @AppStorage("eventsListDaysRange") private var eventsListDaysRange = 7
+    @AppStorage("showReminders") private var showReminders = true
 
     private struct DayGroup: Identifiable {
         let id: Date
         let dayLabel: String
         let dateLabel: String
         let events: [EKEvent]
+        let reminders: [EKReminder]
     }
 
     private var groupedEvents: [DayGroup] {
@@ -25,12 +27,14 @@ struct EventsListView: View {
 
         while currentDate < endDate {
             let dayEvents = calendarManager.events(for: currentDate)
-            if !dayEvents.isEmpty {
+            let dayReminders = showReminders ? calendarManager.reminders(for: currentDate) : []
+            if !dayEvents.isEmpty || !dayReminders.isEmpty {
                 result.append(DayGroup(
                     id: currentDate,
                     dayLabel: dayLabelFor(date: currentDate),
                     dateLabel: dateLabelFor(date: currentDate),
-                    events: dayEvents
+                    events: dayEvents,
+                    reminders: dayReminders
                 ))
             }
             currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
@@ -90,7 +94,8 @@ struct EventsListView: View {
                             DaySectionView(
                                 dayLabel: group.dayLabel,
                                 dateLabel: group.dateLabel,
-                                events: group.events
+                                events: group.events,
+                                reminders: group.reminders
                             )
                             .id(group.id)
                         }

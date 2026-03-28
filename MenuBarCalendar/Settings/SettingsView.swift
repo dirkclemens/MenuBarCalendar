@@ -10,6 +10,7 @@ struct SettingsView: View {
     @ObservedObject var calendarManager: CalendarManager
     @AppStorage("showNextEventInMenuBar") private var showNextEventInMenuBar = true
     @AppStorage("eventsListDaysRange") private var eventsListDaysRange = 7
+    @AppStorage("showReminders") private var showReminders = true
 
     var body: some View {
         Form {
@@ -21,6 +22,26 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                         .padding(.top, 4)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            
+            Section(NSLocalizedString("SettingsReminders", comment: "")) {
+                Toggle(NSLocalizedString("SettingsShowReminders", comment: ""), isOn: $showReminders)
+                
+                if showReminders && calendarManager.hasRemindersAccess {
+                    ReminderListsView(calendarManager: calendarManager)
+                }
+                
+                if !calendarManager.hasRemindersAccess {
+                    SettingsRowView(
+                        icon: "lock.shield",
+                        title: NSLocalizedString("SettingsRemindersPrivacy", comment: ""),
+                        action: {
+                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                    )
                 }
             }
             

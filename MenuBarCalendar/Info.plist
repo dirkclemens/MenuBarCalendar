@@ -4,6 +4,8 @@
 <dict>
 	<key>NSCalendarsUsageDescription</key>
 	<string>MenuBarCalendar needs access to show your upcoming events.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>MenuBarCalendar needs access to show your reminders with due dates.</string>
 	<key>CFBundleLocalizations</key>
 	<array>
 		<string>de</string>

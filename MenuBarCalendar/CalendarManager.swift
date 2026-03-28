@@ -18,6 +18,17 @@ class CalendarManager: ObservableObject {
     @Published var events: [EKEvent] = []
     @Published var calendars: [EKCalendar] = []
     @Published var hasAccess = false
+    
+    // Reminders
+    @Published var reminders: [EKReminder] = []
+    @Published var reminderLists: [EKCalendar] = []
+    @Published var hasRemindersAccess = false
+    @Published var enabledReminderListIDs: Set<String> {
+        didSet {
+            UserDefaults.standard.set(Array(enabledReminderListIDs), forKey: "enabledReminderListIDs")
+            fetchReminders()
+        }
+    }
     @Published var selectedDate: Date = Date()
     @Published var currentMonth: Date = Date()
     @Published var enabledCalendarIDs: Set<String> {
@@ -61,8 +72,16 @@ class CalendarManager: ObservableObject {
         } else {
             enabledCalendarIDs = []
         }
+        
+        // Load saved reminder list selections
+        if let savedReminders = UserDefaults.standard.stringArray(forKey: "enabledReminderListIDs") {
+            enabledReminderListIDs = Set(savedReminders)
+        } else {
+            enabledReminderListIDs = []
+        }
 
         handleAuthorization()
+        handleRemindersAuthorization()
     }
 
     func isCalendarEnabled(_ calendar: EKCalendar) -> Bool {
@@ -86,6 +105,25 @@ class CalendarManager: ObservableObject {
         }
     }
 
+    func isReminderListEnabled(_ calendar: EKCalendar) -> Bool {
+        if enabledReminderListIDs.isEmpty {
+            return true
+        }
+        return enabledReminderListIDs.contains(calendar.calendarIdentifier)
+    }
+
+    func toggleReminderList(_ calendar: EKCalendar) {
+        if enabledReminderListIDs.isEmpty {
+            enabledReminderListIDs = Set(reminderLists.map { $0.calendarIdentifier })
+        }
+
+        if enabledReminderListIDs.contains(calendar.calendarIdentifier) {
+            enabledReminderListIDs.remove(calendar.calendarIdentifier)
+        } else {
+            enabledReminderListIDs.insert(calendar.calendarIdentifier)
+        }
+    }
+
     func requestAccess() {
         if #available(macOS 14.0, *) {
             eventStore.requestFullAccessToEvents { [weak self] granted, error in
@@ -100,6 +138,7 @@ class CalendarManager: ObservableObject {
 
     func refreshAuthorization() {
         handleAuthorization()
+        handleRemindersAuthorization()
     }
 
     private func handleAuthorization() {
@@ -111,6 +150,84 @@ class CalendarManager: ObservableObject {
             updateAccess(granted: true)
         default:
             updateAccess(granted: false)
+        }
+    }
+
+    // MARK: - Reminders Authorization
+
+    func requestRemindersAccess() {
+        if #available(macOS 14.0, *) {
+            eventStore.requestFullAccessToReminders { [weak self] granted, error in
+                self?.updateRemindersAccess(granted: granted)
+            }
+        } else {
+            eventStore.requestAccess(to: .reminder) { [weak self] granted, error in
+                self?.updateRemindersAccess(granted: granted)
+            }
+        }
+    }
+
+    private func handleRemindersAuthorization() {
+        let status = EKEventStore.authorizationStatus(for: .reminder)
+        switch status {
+        case .notDetermined:
+            requestRemindersAccess()
+        case .authorized, .fullAccess:
+            updateRemindersAccess(granted: true)
+        default:
+            updateRemindersAccess(granted: false)
+        }
+    }
+
+    private func updateRemindersAccess(granted: Bool) {
+        DispatchQueue.main.async { [weak self] in
+            self?.hasRemindersAccess = granted
+            if granted {
+                self?.fetchReminderLists()
+                self?.fetchReminders()
+            }
+        }
+    }
+
+    func fetchReminderLists() {
+        reminderLists = eventStore.calendars(for: .reminder)
+    }
+
+    func fetchReminders() {
+        guard hasRemindersAccess else { return }
+
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: selectedDate)
+        
+        let configuredRange = UserDefaults.standard.integer(forKey: "eventsListDaysRange")
+        let days = configuredRange > 0 ? configuredRange : 7
+        guard let end = calendar.date(byAdding: .day, value: days, to: start) else { return }
+
+        let predicate = eventStore.predicateForIncompleteReminders(
+            withDueDateStarting: start,
+            ending: end,
+            calendars: nil
+        )
+
+        eventStore.fetchReminders(matching: predicate) { [weak self] fetchedReminders in
+            DispatchQueue.main.async {
+                self?.reminders = (fetchedReminders ?? []).filter { reminder in
+                    guard let cal = reminder.calendar else { return false }
+                    return self?.isReminderListEnabled(cal) ?? false
+                }.sorted { r1, r2 in
+                    let d1 = r1.dueDateComponents?.date ?? Date.distantFuture
+                    let d2 = r2.dueDateComponents?.date ?? Date.distantFuture
+                    return d1 < d2
+                }
+            }
+        }
+    }
+
+    func reminders(for date: Date) -> [EKReminder] {
+        let calendar = Calendar.current
+        return reminders.filter { reminder in
+            guard let dueDate = reminder.dueDateComponents?.date else { return false }
+            return calendar.isDate(dueDate, inSameDayAs: date)
         }
     }
 
@@ -164,6 +281,7 @@ class CalendarManager: ObservableObject {
         let predicate = eventStore.predicateForEvents(withStart: startDate, end: fetchEnd, calendars: nil)
         events = eventStore.events(matching: predicate)
         updateNextEvent()
+        fetchReminders()
     }
 
     func events(for date: Date) -> [EKEvent] {
