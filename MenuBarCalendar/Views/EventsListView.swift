@@ -85,7 +85,7 @@ struct EventsListView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    if !calendarManager.hasAccess {
+                    if !calendarManager.hasAccess && !calendarManager.hasRemindersAccess {
                         NoAccessView()
                     } else if groupedEvents.isEmpty {
                         EmptyEventsView()

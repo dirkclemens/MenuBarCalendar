@@ -57,9 +57,12 @@ struct DayCellView: View {
             }
             .frame(height: 22)
 
-            EventDotsView(colors: calendarManager.eventDots(for: date))
+            VStack(spacing: 2) {
+                EventDotsView(colors: calendarManager.eventDots(for: date))
+                ReminderDotsView(colors: calendarManager.reminderDots(for: date))
+            }
         }
-        .frame(height: 32)
+        .frame(height: 38)
     }
 
     private var textColor: Color {

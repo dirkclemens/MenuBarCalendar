@@ -14,6 +14,7 @@ class CalendarManager: ObservableObject {
     static let shared = CalendarManager()
 
     let eventStore = EKEventStore()
+    private var remindersFetchToken: UUID = UUID()
 
     @Published var events: [EKEvent] = []
     @Published var calendars: [EKCalendar] = []
@@ -29,7 +30,11 @@ class CalendarManager: ObservableObject {
             fetchReminders()
         }
     }
-    @Published var selectedDate: Date = Date()
+    @Published var selectedDate: Date = Date() {
+        didSet {
+            refreshVisibleContent()
+        }
+    }
     @Published var currentMonth: Date = Date()
     @Published var enabledCalendarIDs: Set<String> {
         didSet {
@@ -184,7 +189,7 @@ class CalendarManager: ObservableObject {
             self?.hasRemindersAccess = granted
             if granted {
                 self?.fetchReminderLists()
-                self?.fetchReminders()
+                self?.refreshVisibleContent()
             }
         }
     }
@@ -196,24 +201,24 @@ class CalendarManager: ObservableObject {
     func fetchReminders() {
         guard hasRemindersAccess else { return }
 
-        let calendar = Calendar.current
-        let start = calendar.startOfDay(for: selectedDate)
-        
-        let configuredRange = UserDefaults.standard.integer(forKey: "eventsListDaysRange")
-        let days = configuredRange > 0 ? configuredRange : 7
-        guard let end = calendar.date(byAdding: .day, value: days, to: start) else { return }
+        let (start, end) = contentFetchRange()
 
         let predicate = eventStore.predicateForIncompleteReminders(
             withDueDateStarting: start,
             ending: end,
-            calendars: nil
+            calendars: selectedReminderLists()
         )
+
+        let fetchToken = UUID()
+        remindersFetchToken = fetchToken
 
         eventStore.fetchReminders(matching: predicate) { [weak self] fetchedReminders in
             DispatchQueue.main.async {
-                self?.reminders = (fetchedReminders ?? []).filter { reminder in
+                guard let self, self.remindersFetchToken == fetchToken else { return }
+
+                self.reminders = (fetchedReminders ?? []).filter { reminder in
                     guard let cal = reminder.calendar else { return false }
-                    return self?.isReminderListEnabled(cal) ?? false
+                    return self.isReminderListEnabled(cal)
                 }.sorted { r1, r2 in
                     let d1 = r1.dueDateComponents?.date ?? Date.distantFuture
                     let d2 = r2.dueDateComponents?.date ?? Date.distantFuture
@@ -237,7 +242,7 @@ class CalendarManager: ObservableObject {
             if granted {
                 self?.refreshToday()
                 self?.fetchCalendars()
-                self?.fetchEvents()
+                self?.refreshVisibleContent()
             }
         }
     }
@@ -263,25 +268,15 @@ class CalendarManager: ObservableObject {
     func fetchEvents() {
         guard hasAccess else { return }
 
-        let calendar = Calendar.current
+        let (startDate, fetchEnd) = contentFetchRange()
 
-        // Get events for the visible month range (plus buffer for adjacent months)
-        guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth)),
-              let startDate = calendar.date(byAdding: .month, value: -1, to: startOfMonth),
-              let endDate = calendar.date(byAdding: .month, value: 2, to: startOfMonth) else {
-            return
-        }
-
-        // Also ensure the EventsListView window is always covered
-        let configuredRange = UserDefaults.standard.integer(forKey: "eventsListDaysRange")
-        let days = configuredRange > 0 ? configuredRange : 7
-        let listEnd = calendar.date(byAdding: .day, value: days, to: selectedDate) ?? endDate
-        let fetchEnd = max(endDate, listEnd)
-
-        let predicate = eventStore.predicateForEvents(withStart: startDate, end: fetchEnd, calendars: nil)
+        let predicate = eventStore.predicateForEvents(
+            withStart: startDate,
+            end: fetchEnd,
+            calendars: selectedEventCalendars()
+        )
         events = eventStore.events(matching: predicate)
         updateNextEvent()
-        fetchReminders()
     }
 
     func events(for date: Date) -> [EKEvent] {
@@ -306,25 +301,90 @@ class CalendarManager: ObservableObject {
         return colors
     }
 
+    func reminderDots(for date: Date) -> [CGColor] {
+        let dayReminders = reminders(for: date)
+        var colors: [CGColor] = []
+        var seenLists: Set<String> = []
+
+        for reminder in dayReminders {
+            guard let list = reminder.calendar else { continue }
+            if !seenLists.contains(list.calendarIdentifier) {
+                colors.append(list.cgColor)
+                seenLists.insert(list.calendarIdentifier)
+                if colors.count >= 3 { break }
+            }
+        }
+        return colors
+    }
+
     func goToToday() {
         currentMonth = Date()
         selectedDate = Date()
-        fetchEvents()
         // Trigger scroll to current event
         scrollToCurrentEventTrigger = UUID()
     }
 
     func previousMonth() {
-        if let newMonth = Calendar.current.date(byAdding: .month, value: -1, to: currentMonth) {
-            currentMonth = newMonth
-            fetchEvents()
-        }
+        moveMonth(by: -1)
     }
 
     func nextMonth() {
-        if let newMonth = Calendar.current.date(byAdding: .month, value: 1, to: currentMonth) {
-            currentMonth = newMonth
+        moveMonth(by: 1)
+    }
+
+    private func moveMonth(by value: Int) {
+        let calendar = Calendar.current
+        guard let newMonth = calendar.date(byAdding: .month, value: value, to: currentMonth) else { return }
+
+        currentMonth = newMonth
+
+        let selectedDay = calendar.component(.day, from: selectedDate)
+        let newMonthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: newMonth)) ?? newMonth
+        let dayRange = calendar.range(of: .day, in: .month, for: newMonthStart) ?? 1..<32
+        let clampedDay = min(selectedDay, dayRange.count)
+
+        if let syncedSelection = calendar.date(byAdding: .day, value: clampedDay - 1, to: newMonthStart) {
+            selectedDate = syncedSelection
+        }
+
+        scrollToCurrentEventTrigger = UUID()
+    }
+
+    private func refreshVisibleContent() {
+        if hasAccess {
             fetchEvents()
         }
+        if hasRemindersAccess {
+            fetchReminders()
+        }
+    }
+
+    private func contentFetchRange() -> (start: Date, end: Date) {
+        let calendar = Calendar.current
+
+        guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth)),
+              let monthFetchStart = calendar.date(byAdding: .month, value: -1, to: startOfMonth),
+              let monthFetchEnd = calendar.date(byAdding: .month, value: 2, to: startOfMonth) else {
+            let start = calendar.startOfDay(for: selectedDate)
+            let fallbackEnd = calendar.date(byAdding: .day, value: 7, to: start) ?? start
+            return (start, fallbackEnd)
+        }
+
+        let configuredRange = UserDefaults.standard.integer(forKey: "eventsListDaysRange")
+        let days = configuredRange > 0 ? configuredRange : 7
+        let listStart = calendar.startOfDay(for: selectedDate)
+        let listEnd = calendar.date(byAdding: .day, value: days, to: listStart) ?? monthFetchEnd
+
+        return (monthFetchStart, max(monthFetchEnd, listEnd))
+    }
+
+    private func selectedEventCalendars() -> [EKCalendar]? {
+        guard !enabledCalendarIDs.isEmpty else { return nil }
+        return calendars.filter { enabledCalendarIDs.contains($0.calendarIdentifier) }
+    }
+
+    private func selectedReminderLists() -> [EKCalendar]? {
+        guard !enabledReminderListIDs.isEmpty else { return nil }
+        return reminderLists.filter { enabledReminderListIDs.contains($0.calendarIdentifier) }
     }
 }

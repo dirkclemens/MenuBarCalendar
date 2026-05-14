@@ -9,11 +9,7 @@ struct ReminderRowView: View {
     let reminder: EKReminder
     
     private var timeLabel: String? {
-        guard let components = reminder.dueDateComponents,
-              let hour = components.hour,
-              let minute = components.minute else {
-            return nil
-        }
+        guard let components = reminder.dueDateComponents else { return nil }
         let formatter = DateFormatter()
         formatter.locale = Locale.current
         if let format = DateFormatter.dateFormat(fromTemplate: "j:mm", options: 0, locale: Locale.current) {
@@ -27,10 +23,12 @@ struct ReminderRowView: View {
     }
     
     var body: some View {
+        let reminderColor = reminder.calendar.map { Color(cgColor: $0.cgColor) } ?? .secondary
+
         HStack(spacing: 8) {
             Image(systemName: "circle")
                 .font(.system(size: 10))
-                .foregroundColor(Color(cgColor: reminder.calendar.cgColor))
+                .foregroundColor(reminderColor)
             
             if let time = timeLabel {
                 Text(time)

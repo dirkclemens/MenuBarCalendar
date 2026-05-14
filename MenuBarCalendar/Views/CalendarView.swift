@@ -21,6 +21,7 @@ struct CalendarView: View {
 
             EventsListView(calendarManager: calendarManager)
         }
+        .context
         .frame(maxHeight: .infinity)
     }
 }
