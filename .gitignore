@@ -5,5 +5,7 @@
 *.py
 *.pxd
 *.sh
+*.dmg
+landing.html
 /ignore/
 !screenshot.jpg

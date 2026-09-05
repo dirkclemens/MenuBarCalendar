@@ -1,11 +1,15 @@
 # MenuBarCalendar
 
-A lightweight macOS menu bar app that shows a calendar and your upcoming events — always one click away.
+MenuBarCalendar is a lightweight macOS menu bar app that puts a full month calendar and your upcoming Calendar.app events one click away. It reads your existing Apple Calendar accounts read-only, highlights today and weekends, shows a colour dot per calendar for each day with events, and lists upcoming events with automatic scrolling to the current or next entry. Tapping an event opens it directly in Apple Calendar.
 
-![macOS](https://img.shields.io/badge/macOS-13.0%2B-blue)
 ![Swift](https://img.shields.io/badge/Swift-5.9%2B-orange)
 ![SwiftUI](https://img.shields.io/badge/SwiftUI-native-green)
 
+---
+
+## Screenshots
+
+![screenshot](./screenshot.jpg)
 
 ---
 
@@ -25,17 +29,12 @@ A lightweight macOS menu bar app that shows a calendar and your upcoming events 
 
 ---
 
-## Screenshots
-
-![screenshot](./screenshot.jpg)
-
----
-
 ## Requirements
 
 | | |
 |---|---|
-| macOS | 13.0 Ventura or later |
+| macOS | 14.0 Sonoma or later |
+| Architecture | Apple Silicon only |
 | Xcode | 15 or later |
 | Swift | 5.9 or later |
 
@@ -47,7 +46,7 @@ A lightweight macOS menu bar app that shows a calendar and your upcoming events 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/MenuBarCalendar.git
+   git clone https://github.com/dirkclemens/MenuBarCalendar.git
    cd MenuBarCalendar
    ```
 2. Open `MenuBarCalendar.xcodeproj` in Xcode.
@@ -60,9 +59,19 @@ On first launch macOS will ask for **Calendar access**. You can also grant it ma
 
 > System Settings → Privacy & Security → Calendars → MenuBarCalendar ✓
 
+### Prebuilt DMG
+
+A ready-to-run build is available as `MenuBarCalendar-1.0.dmg` (ad-hoc signed, Apple Silicon only). Since it isn't notarized by Apple, macOS blocks it on first launch. Remove the quarantine flag before opening:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/MenuBarCalendar.app
+```
+
+Alternatively, right-click the app in Finder and choose "Open".
+
 ---
 
-## Project structure
+## Project Structure
 
 ```
 MenuBarCalendar/
@@ -91,8 +100,6 @@ MenuBarCalendar/
 └── de.lproj/Localizable.strings
 ```
 
----
-
 ## Localisation
 
 The app ships with **English** and **German**. To add another language:
@@ -101,13 +108,9 @@ The app ships with **English** and **German**. To add another language:
 2. Duplicate `en.lproj/Localizable.strings` into the new `xx.lproj/` folder.
 3. Translate the values.
 
----
-
 ## Privacy
 
 MenuBarCalendar requests **read-only** access to your calendars (`NSCalendarsUsageDescription`). No data leaves your device.
-
----
 
 ## Credits
 
@@ -117,4 +120,4 @@ Inspired by [itsybitsycal](https://github.com/harryfliu/itsybitsycal) by [@harry
 
 ## License
 
-GNU — see [LICENSE](LICENSE) for details.
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) — see [LICENSE](LICENSE) for details. Free for noncommercial use; commercial use requires a separate license from the author.
