@@ -43,9 +43,7 @@ struct MenuBarEventLabel: View {
     private var label: String {
         let title = event.title ?? NSLocalizedString("UntitledEvent", comment: "")
         if event.isAllDay { return title }
-        let formatter = DateFormatter()
-        formatter.dateFormat = DateFormatter.dateFormat(fromTemplate: "j:mm", options: 0, locale: Locale.current)
-        return " \(formatter.string(from: event.startDate)) \(title)"
+        return " \(Formatters.time.string(from: event.startDate)) \(title)"
     }
 
     var body: some View {

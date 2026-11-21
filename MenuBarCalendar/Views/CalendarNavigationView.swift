@@ -8,9 +8,7 @@ struct CalendarNavigationView: View {
     @ObservedObject var calendarManager: CalendarManager
 
     private var monthYearString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: calendarManager.currentMonth)
+        Formatters.monthYear.string(from: calendarManager.currentMonth)
     }
 
     var body: some View {

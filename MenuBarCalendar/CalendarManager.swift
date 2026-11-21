@@ -15,129 +15,116 @@ class CalendarManager: ObservableObject {
 
     let eventStore = EKEventStore()
     private var remindersFetchToken: UUID = UUID()
+    private var cancellables: Set<AnyCancellable> = []
 
-    @Published var events: [EKEvent] = []
-    @Published var calendars: [EKCalendar] = []
-    @Published var hasAccess = false
-    
+    // MARK: - Defaults keys
+
+    private enum Keys {
+        static let disabledCalendarIDs = "disabledCalendarIDs"
+        static let disabledReminderListIDs = "disabledReminderListIDs"
+        // Legacy keys (whitelist, where an empty set meant "all") — migrated on first launch.
+        static let legacyEnabledCalendarIDs = "enabledCalendarIDs"
+        static let legacyEnabledReminderListIDs = "enabledReminderListIDs"
+        static let eventsListDaysRange = "eventsListDaysRange"
+        static let showAllDayEventsInMenuBar = "showAllDayEventsInMenuBar"
+    }
+
+    // MARK: - Published state
+
+    @Published private(set) var events: [EKEvent] = []
+    @Published private(set) var calendars: [EKCalendar] = []
+    @Published private(set) var hasAccess = false
+
     // Reminders
-    @Published var reminders: [EKReminder] = []
-    @Published var reminderLists: [EKCalendar] = []
-    @Published var hasRemindersAccess = false
-    @Published var enabledReminderListIDs: Set<String> {
-        didSet {
-            UserDefaults.standard.set(Array(enabledReminderListIDs), forKey: "enabledReminderListIDs")
-            fetchReminders()
-        }
-    }
+    @Published private(set) var reminders: [EKReminder] = []
+    @Published private(set) var reminderLists: [EKCalendar] = []
+    @Published private(set) var hasRemindersAccess = false
+
+    /// Calendars the user switched off. Stored as a blacklist so that calendars
+    /// added later show up automatically and switching off *all* calendars works.
+    @Published private(set) var disabledCalendarIDs: Set<String>
+    @Published private(set) var disabledReminderListIDs: Set<String>
+
     @Published var selectedDate: Date = Date() {
-        didSet {
-            refreshVisibleContent()
-        }
+        didSet { refreshVisibleContent(force: false) }
     }
-    @Published var currentMonth: Date = Date()
-    @Published var enabledCalendarIDs: Set<String> {
-        didSet {
-            UserDefaults.standard.set(Array(enabledCalendarIDs), forKey: "enabledCalendarIDs")
-            fetchEvents()
-        }
+    @Published var currentMonth: Date = Date() {
+        didSet { refreshVisibleContent(force: false) }
     }
+
     /// Trigger to notify views to scroll to current event (changes value to trigger)
     @Published var scrollToCurrentEventTrigger: UUID = UUID()
 
     /// The current or next upcoming event today, for display in the menu bar label.
-    @Published var nextEvent: EKEvent?
+    @Published private(set) var nextEvent: EKEvent?
 
-    /// Current date — updated at midnight so the menu bar icon redraws automatically.
-    @Published var today: Date = Date()
+    /// Current date — updated when the day changes so the menu bar icon redraws automatically.
+    @Published private(set) var today: Date = Date()
 
-    private func updateNextEvent() {
-        let now = Date()
-        let calendar = Calendar.current
-        let showAllDay = UserDefaults.standard.bool(forKey: "showAllDayEventsInMenuBar")
-        nextEvent = events
-            .filter {
-                isCalendarEnabled($0.calendar)
-                && calendar.isDateInToday($0.startDate)
-                && $0.endDate > now
-                && (!$0.isAllDay || showAllDay)
-            }
-            .sorted { $0.startDate < $1.startDate }
-            .first
-    }
+    // MARK: - Derived caches (rebuilt on every fetch)
 
-    func refreshNextEvent() {
-        updateNextEvent()
-    }
+    /// Events indexed by start of day. Multi-day events appear on every day they cover.
+    private var eventsByDay: [Date: [EKEvent]] = [:]
+    private var remindersByDay: [Date: [EKReminder]] = [:]
+    /// Date ranges the current `events` / `reminders` cover — used to skip redundant fetches.
+    private var loadedEventRange: DateInterval?
+    private var loadedReminderRange: DateInterval?
+
+    private var legacyEnabledCalendarIDs: Set<String>?
+    private var legacyEnabledReminderListIDs: Set<String>?
+
+    // MARK: - Init
 
     init() {
-        // Load saved calendar selections or default to all enabled
-        if let saved = UserDefaults.standard.stringArray(forKey: "enabledCalendarIDs") {
-            enabledCalendarIDs = Set(saved)
-        } else {
-            enabledCalendarIDs = []
-        }
-        
-        // Load saved reminder list selections
-        if let savedReminders = UserDefaults.standard.stringArray(forKey: "enabledReminderListIDs") {
-            enabledReminderListIDs = Set(savedReminders)
-        } else {
-            enabledReminderListIDs = []
-        }
+        let defaults = UserDefaults.standard
+        disabledCalendarIDs = Set(defaults.stringArray(forKey: Keys.disabledCalendarIDs) ?? [])
+        disabledReminderListIDs = Set(defaults.stringArray(forKey: Keys.disabledReminderListIDs) ?? [])
+        legacyEnabledCalendarIDs = defaults.stringArray(forKey: Keys.legacyEnabledCalendarIDs).map(Set.init)
+        legacyEnabledReminderListIDs = defaults.stringArray(forKey: Keys.legacyEnabledReminderListIDs).map(Set.init)
+
+        // Refetch whenever calendar data changes (other apps, iCloud sync, …).
+        NotificationCenter.default.publisher(for: .EKEventStoreChanged, object: eventStore)
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in self?.eventStoreDidChange() }
+            .store(in: &cancellables)
 
         handleAuthorization()
         handleRemindersAuthorization()
     }
 
+    private func eventStoreDidChange() {
+        if hasAccess { fetchCalendars() }
+        if hasRemindersAccess { fetchReminderLists() }
+        refreshVisibleContent(force: true)
+    }
+
+    // MARK: - Calendar / list selection
+
     func isCalendarEnabled(_ calendar: EKCalendar) -> Bool {
-        // If no calendars have been explicitly set, show all
-        if enabledCalendarIDs.isEmpty {
-            return true
-        }
-        return enabledCalendarIDs.contains(calendar.calendarIdentifier)
+        !disabledCalendarIDs.contains(calendar.calendarIdentifier)
     }
 
     func toggleCalendar(_ calendar: EKCalendar) {
-        // If toggling for the first time and set is empty, initialize with all calendars
-        if enabledCalendarIDs.isEmpty {
-            enabledCalendarIDs = Set(calendars.map { $0.calendarIdentifier })
-        }
-
-        if enabledCalendarIDs.contains(calendar.calendarIdentifier) {
-            enabledCalendarIDs.remove(calendar.calendarIdentifier)
-        } else {
-            enabledCalendarIDs.insert(calendar.calendarIdentifier)
-        }
+        disabledCalendarIDs.formSymmetricDifference([calendar.calendarIdentifier])
+        UserDefaults.standard.set(Array(disabledCalendarIDs), forKey: Keys.disabledCalendarIDs)
+        fetchEvents()
     }
 
     func isReminderListEnabled(_ calendar: EKCalendar) -> Bool {
-        if enabledReminderListIDs.isEmpty {
-            return true
-        }
-        return enabledReminderListIDs.contains(calendar.calendarIdentifier)
+        !disabledReminderListIDs.contains(calendar.calendarIdentifier)
     }
 
     func toggleReminderList(_ calendar: EKCalendar) {
-        if enabledReminderListIDs.isEmpty {
-            enabledReminderListIDs = Set(reminderLists.map { $0.calendarIdentifier })
-        }
-
-        if enabledReminderListIDs.contains(calendar.calendarIdentifier) {
-            enabledReminderListIDs.remove(calendar.calendarIdentifier)
-        } else {
-            enabledReminderListIDs.insert(calendar.calendarIdentifier)
-        }
+        disabledReminderListIDs.formSymmetricDifference([calendar.calendarIdentifier])
+        UserDefaults.standard.set(Array(disabledReminderListIDs), forKey: Keys.disabledReminderListIDs)
+        fetchReminders()
     }
 
+    // MARK: - Authorization (events)
+
     func requestAccess() {
-        if #available(macOS 14.0, *) {
-            eventStore.requestFullAccessToEvents { [weak self] granted, error in
-                self?.updateAccess(granted: granted)
-            }
-        } else {
-            eventStore.requestAccess(to: .event) { [weak self] granted, error in
-                self?.updateAccess(granted: granted)
-            }
+        eventStore.requestFullAccessToEvents { [weak self] granted, _ in
+            self?.updateAccess(granted: granted)
         }
     }
 
@@ -147,37 +134,43 @@ class CalendarManager: ObservableObject {
     }
 
     private func handleAuthorization() {
-        let status = EKEventStore.authorizationStatus(for: .event)
-        switch status {
+        switch EKEventStore.authorizationStatus(for: .event) {
         case .notDetermined:
             requestAccess()
-        case .authorized, .fullAccess:
+        case .fullAccess:
             updateAccess(granted: true)
         default:
             updateAccess(granted: false)
         }
     }
 
-    // MARK: - Reminders Authorization
-
-    func requestRemindersAccess() {
-        if #available(macOS 14.0, *) {
-            eventStore.requestFullAccessToReminders { [weak self] granted, error in
-                self?.updateRemindersAccess(granted: granted)
-            }
-        } else {
-            eventStore.requestAccess(to: .reminder) { [weak self] granted, error in
-                self?.updateRemindersAccess(granted: granted)
+    private func updateAccess(granted: Bool) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if self.hasAccess != granted { self.hasAccess = granted }
+            if granted {
+                self.refreshToday()
+                self.fetchCalendars()
+                self.fetchEvents()
+            } else {
+                self.clearEvents()
             }
         }
     }
 
+    // MARK: - Authorization (reminders)
+
+    func requestRemindersAccess() {
+        eventStore.requestFullAccessToReminders { [weak self] granted, _ in
+            self?.updateRemindersAccess(granted: granted)
+        }
+    }
+
     private func handleRemindersAuthorization() {
-        let status = EKEventStore.authorizationStatus(for: .reminder)
-        switch status {
+        switch EKEventStore.authorizationStatus(for: .reminder) {
         case .notDetermined:
             requestRemindersAccess()
-        case .authorized, .fullAccess:
+        case .fullAccess:
             updateRemindersAccess(granted: true)
         default:
             updateRemindersAccess(granted: false)
@@ -186,135 +179,227 @@ class CalendarManager: ObservableObject {
 
     private func updateRemindersAccess(granted: Bool) {
         DispatchQueue.main.async { [weak self] in
-            self?.hasRemindersAccess = granted
+            guard let self else { return }
+            if self.hasRemindersAccess != granted { self.hasRemindersAccess = granted }
             if granted {
-                self?.fetchReminderLists()
-                self?.refreshVisibleContent()
+                self.fetchReminderLists()
+                self.fetchReminders()
+            } else {
+                self.setReminders([])
+                self.loadedReminderRange = nil
             }
+        }
+    }
+
+    // MARK: - Fetching
+
+    func fetchCalendars() {
+        calendars = eventStore.calendars(for: .event)
+        if let legacy = legacyEnabledCalendarIDs {
+            disabledCalendarIDs = Self.migrate(legacyEnabled: legacy, all: calendars,
+                                               legacyKey: Keys.legacyEnabledCalendarIDs,
+                                               newKey: Keys.disabledCalendarIDs)
+            legacyEnabledCalendarIDs = nil
         }
     }
 
     func fetchReminderLists() {
         reminderLists = eventStore.calendars(for: .reminder)
-    }
-
-    func fetchReminders() {
-        guard hasRemindersAccess else { return }
-
-        let (start, end) = contentFetchRange()
-
-        let predicate = eventStore.predicateForIncompleteReminders(
-            withDueDateStarting: start,
-            ending: end,
-            calendars: selectedReminderLists()
-        )
-
-        let fetchToken = UUID()
-        remindersFetchToken = fetchToken
-
-        eventStore.fetchReminders(matching: predicate) { [weak self] fetchedReminders in
-            DispatchQueue.main.async {
-                guard let self, self.remindersFetchToken == fetchToken else { return }
-
-                self.reminders = (fetchedReminders ?? []).filter { reminder in
-                    guard let cal = reminder.calendar else { return false }
-                    return self.isReminderListEnabled(cal)
-                }.sorted { r1, r2 in
-                    let d1 = r1.dueDateComponents?.date ?? Date.distantFuture
-                    let d2 = r2.dueDateComponents?.date ?? Date.distantFuture
-                    return d1 < d2
-                }
-            }
+        if let legacy = legacyEnabledReminderListIDs {
+            disabledReminderListIDs = Self.migrate(legacyEnabled: legacy, all: reminderLists,
+                                                   legacyKey: Keys.legacyEnabledReminderListIDs,
+                                                   newKey: Keys.disabledReminderListIDs)
+            legacyEnabledReminderListIDs = nil
         }
     }
 
-    func reminders(for date: Date) -> [EKReminder] {
-        let calendar = Calendar.current
-        return reminders.filter { reminder in
-            guard let dueDate = reminder.dueDateComponents?.date else { return false }
-            return calendar.isDate(dueDate, inSameDayAs: date)
-        }
+    private static func migrate(legacyEnabled: Set<String>, all: [EKCalendar],
+                                legacyKey: String, newKey: String) -> Set<String> {
+        let disabled = disabledIDs(fromLegacyEnabled: legacyEnabled, allIDs: all.map(\.calendarIdentifier))
+        UserDefaults.standard.set(Array(disabled), forKey: newKey)
+        UserDefaults.standard.removeObject(forKey: legacyKey)
+        return disabled
     }
 
-    private func updateAccess(granted: Bool) {
-        DispatchQueue.main.async { [weak self] in
-            self?.hasAccess = granted
-            if granted {
-                self?.refreshToday()
-                self?.fetchCalendars()
-                self?.refreshVisibleContent()
-            }
-        }
+    /// Converts the old whitelist (empty = all enabled) into the new blacklist.
+    nonisolated static func disabledIDs(fromLegacyEnabled legacyEnabled: Set<String>, allIDs: [String]) -> Set<String> {
+        legacyEnabled.isEmpty ? [] : Set(allIDs).subtracting(legacyEnabled)
     }
 
-    /// Reset selected date and current month to today — call on every activation.
-    func refreshToday() {
-        let now = Date()
-        let calendar = Calendar.current
-        NSLog("refreshToday fired at \(now)")
-        today = now
-        if !calendar.isDateInToday(selectedDate) {
-            selectedDate = now
+    /// Re-reads events and reminders. With `force == false` the fetch is skipped
+    /// when the already loaded data covers the range needed for the current view.
+    func refreshVisibleContent(force: Bool = true) {
+        let range = contentFetchRange()
+        if hasAccess, force || !(loadedEventRange?.covers(range) ?? false) {
+            fetchEvents()
         }
-        if !calendar.isDate(currentMonth, equalTo: now, toGranularity: .month) {
-            currentMonth = now
+        if hasRemindersAccess, force || !(loadedReminderRange?.covers(range) ?? false) {
+            fetchReminders()
         }
-    }
-
-    func fetchCalendars() {
-        calendars = eventStore.calendars(for: .event)
     }
 
     func fetchEvents() {
         guard hasAccess else { return }
 
-        let (startDate, fetchEnd) = contentFetchRange()
+        let range = contentFetchRange()
+        let enabledCalendars = calendars.filter(isCalendarEnabled)
+
+        // An empty calendar list would make EventKit search *all* calendars.
+        guard !enabledCalendars.isEmpty else {
+            clearEvents()
+            loadedEventRange = range
+            return
+        }
 
         let predicate = eventStore.predicateForEvents(
-            withStart: startDate,
-            end: fetchEnd,
-            calendars: selectedEventCalendars()
+            withStart: range.start,
+            end: range.end,
+            calendars: disabledCalendarIDs.isEmpty ? nil : enabledCalendars
         )
-        events = eventStore.events(matching: predicate)
+        let fetched = eventStore.events(matching: predicate)
+            .filter { isCalendarEnabled($0.calendar) }
+            .sorted(by: Self.eventOrder)
+
+        eventsByDay = Self.indexByDay(fetched, within: range)
+        loadedEventRange = range
+        events = fetched
         updateNextEvent()
     }
 
-    func events(for date: Date) -> [EKEvent] {
+    func fetchReminders() {
+        guard hasRemindersAccess else { return }
+
+        let range = contentFetchRange()
+        let enabledLists = reminderLists.filter(isReminderListEnabled)
+        let fetchToken = UUID()
+        remindersFetchToken = fetchToken
+
+        guard !enabledLists.isEmpty else {
+            setReminders([])
+            loadedReminderRange = range
+            return
+        }
+
+        let predicate = eventStore.predicateForIncompleteReminders(
+            withDueDateStarting: range.start,
+            ending: range.end,
+            calendars: disabledReminderListIDs.isEmpty ? nil : enabledLists
+        )
+
+        eventStore.fetchReminders(matching: predicate) { [weak self] fetchedReminders in
+            DispatchQueue.main.async {
+                guard let self, self.remindersFetchToken == fetchToken else { return }
+
+                let sorted = (fetchedReminders ?? [])
+                    .filter { reminder in
+                        guard let list = reminder.calendar else { return false }
+                        return self.isReminderListEnabled(list)
+                    }
+                    .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
+
+                self.loadedReminderRange = range
+                self.setReminders(sorted)
+            }
+        }
+    }
+
+    private func setReminders(_ sorted: [EKReminder]) {
         let calendar = Calendar.current
-        return events.filter { event in
-            calendar.isDate(event.startDate, inSameDayAs: date) && isCalendarEnabled(event.calendar)
-        }.sorted { $0.startDate < $1.startDate }
+        var byDay: [Date: [EKReminder]] = [:]
+        for reminder in sorted {
+            guard let due = reminder.dueDate else { continue }
+            byDay[calendar.startOfDay(for: due), default: []].append(reminder)
+        }
+        remindersByDay = byDay
+        reminders = sorted
+    }
+
+    private func clearEvents() {
+        events = []
+        eventsByDay = [:]
+        loadedEventRange = nil
+        updateNextEvent()
+    }
+
+    // MARK: - Queries used by the views
+
+    func events(for date: Date) -> [EKEvent] {
+        eventsByDay[Calendar.current.startOfDay(for: date)] ?? []
+    }
+
+    func reminders(for date: Date) -> [EKReminder] {
+        remindersByDay[Calendar.current.startOfDay(for: date)] ?? []
     }
 
     func eventDots(for date: Date) -> [CGColor] {
-        let dayEvents = events(for: date)
-        var colors: [CGColor] = []
-        var seenCalendars: Set<String> = []
+        Self.uniqueColors(of: events(for: date).map(\.calendar))
+    }
 
-        for event in dayEvents {
-            if !seenCalendars.contains(event.calendar.calendarIdentifier) {
-                colors.append(event.calendar.cgColor)
-                seenCalendars.insert(event.calendar.calendarIdentifier)
-                if colors.count >= 3 { break }
-            }
+    func reminderDots(for date: Date) -> [CGColor] {
+        Self.uniqueColors(of: reminders(for: date).compactMap(\.calendar))
+    }
+
+    private static func uniqueColors(of calendars: [EKCalendar], limit: Int = 3) -> [CGColor] {
+        var colors: [CGColor] = []
+        var seen: Set<String> = []
+        for calendar in calendars where seen.insert(calendar.calendarIdentifier).inserted {
+            colors.append(calendar.cgColor)
+            if colors.count >= limit { break }
         }
         return colors
     }
 
-    func reminderDots(for date: Date) -> [CGColor] {
-        let dayReminders = reminders(for: date)
-        var colors: [CGColor] = []
-        var seenLists: Set<String> = []
+    // MARK: - Next event (menu bar label)
 
-        for reminder in dayReminders {
-            guard let list = reminder.calendar else { continue }
-            if !seenLists.contains(list.calendarIdentifier) {
-                colors.append(list.cgColor)
-                seenLists.insert(list.calendarIdentifier)
-                if colors.count >= 3 { break }
-            }
+    func refreshNextEvent() {
+        updateNextEvent()
+    }
+
+    private func updateNextEvent() {
+        let now = Date()
+        let calendar = Calendar.current
+        let showAllDay = UserDefaults.standard.bool(forKey: Keys.showAllDayEventsInMenuBar)
+        let candidate = events(for: now).first {
+            calendar.isDateInToday($0.startDate)
+            && $0.endDate > now
+            && (!$0.isAllDay || showAllDay)
         }
-        return colors
+        // Only publish real changes — this runs every minute and every publish
+        // re-renders the menu bar label and the open popover.
+        if !Self.isSameEvent(nextEvent, candidate) {
+            nextEvent = candidate
+        }
+    }
+
+    private static func isSameEvent(_ a: EKEvent?, _ b: EKEvent?) -> Bool {
+        switch (a, b) {
+        case (nil, nil): return true
+        case let (a?, b?):
+            return a.eventIdentifier == b.eventIdentifier
+                && a.startDate == b.startDate
+                && a.endDate == b.endDate
+                && a.title == b.title
+                && a.calendar.calendarIdentifier == b.calendar.calendarIdentifier
+        default: return false
+        }
+    }
+
+    // MARK: - Navigation
+
+    /// Reset selected date and current month to today when the day has changed.
+    func refreshToday() {
+        let now = Date()
+        let calendar = Calendar.current
+        if !calendar.isDate(today, inSameDayAs: now) {
+            today = now
+        }
+        if !calendar.isDate(currentMonth, equalTo: now, toGranularity: .month) {
+            currentMonth = now
+        }
+        if !calendar.isDateInToday(selectedDate) {
+            selectedDate = now
+        }
+        updateNextEvent()
     }
 
     func goToToday() {
@@ -350,16 +435,9 @@ class CalendarManager: ObservableObject {
         scrollToCurrentEventTrigger = UUID()
     }
 
-    private func refreshVisibleContent() {
-        if hasAccess {
-            fetchEvents()
-        }
-        if hasRemindersAccess {
-            fetchReminders()
-        }
-    }
+    // MARK: - Helpers
 
-    private func contentFetchRange() -> (start: Date, end: Date) {
+    private func contentFetchRange() -> DateInterval {
         let calendar = Calendar.current
 
         guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth)),
@@ -367,24 +445,63 @@ class CalendarManager: ObservableObject {
               let monthFetchEnd = calendar.date(byAdding: .month, value: 2, to: startOfMonth) else {
             let start = calendar.startOfDay(for: selectedDate)
             let fallbackEnd = calendar.date(byAdding: .day, value: 7, to: start) ?? start
-            return (start, fallbackEnd)
+            return DateInterval(start: start, end: fallbackEnd)
         }
 
-        let configuredRange = UserDefaults.standard.integer(forKey: "eventsListDaysRange")
+        let configuredRange = UserDefaults.standard.integer(forKey: Keys.eventsListDaysRange)
         let days = configuredRange > 0 ? configuredRange : 7
         let listStart = calendar.startOfDay(for: selectedDate)
         let listEnd = calendar.date(byAdding: .day, value: days, to: listStart) ?? monthFetchEnd
 
-        return (monthFetchStart, max(monthFetchEnd, listEnd))
+        return DateInterval(start: min(monthFetchStart, listStart), end: max(monthFetchEnd, listEnd))
     }
 
-    private func selectedEventCalendars() -> [EKCalendar]? {
-        guard !enabledCalendarIDs.isEmpty else { return nil }
-        return calendars.filter { enabledCalendarIDs.contains($0.calendarIdentifier) }
+    nonisolated private static func eventOrder(_ a: EKEvent, _ b: EKEvent) -> Bool {
+        if a.isAllDay != b.isAllDay { return a.isAllDay }
+        if a.startDate != b.startDate { return a.startDate < b.startDate }
+        return (a.title ?? "") < (b.title ?? "")
     }
 
-    private func selectedReminderLists() -> [EKCalendar]? {
-        guard !enabledReminderListIDs.isEmpty else { return nil }
-        return reminderLists.filter { enabledReminderListIDs.contains($0.calendarIdentifier) }
+    /// Builds a start-of-day → events lookup. Events spanning several days are
+    /// added to each covered day (clamped to `range`).
+    nonisolated static func indexByDay(_ events: [EKEvent], within range: DateInterval) -> [Date: [EKEvent]] {
+        let calendar = Calendar.current
+        let rangeFirstDay = calendar.startOfDay(for: range.start)
+        let rangeLastDay = calendar.startOfDay(for: range.end)
+        var index: [Date: [EKEvent]] = [:]
+
+        for event in events {
+            guard let start = event.startDate, let end = event.endDate else { continue }
+            // The end date is exclusive: an event ending at 00:00 does not cover that day.
+            let lastInstant = end > start ? end.addingTimeInterval(-1) : start
+            var day = max(calendar.startOfDay(for: start), rangeFirstDay)
+            let lastDay = min(calendar.startOfDay(for: lastInstant), rangeLastDay)
+
+            while day <= lastDay {
+                index[day, default: []].append(event)
+                guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+                day = next
+            }
+        }
+        return index
+    }
+}
+
+extension EKReminder {
+    /// Due date resolved with the current calendar. Safer than `dueDateComponents.date`,
+    /// which returns nil whenever the components carry no calendar.
+    var dueDate: Date? {
+        dueDateComponents.flatMap { Calendar.current.date(from: $0) }
+    }
+
+    /// False for reminders that are due on a day without a specific time.
+    var hasDueTime: Bool {
+        dueDateComponents?.hour != nil
+    }
+}
+
+private extension DateInterval {
+    func covers(_ other: DateInterval) -> Bool {
+        start <= other.start && end >= other.end
     }
 }

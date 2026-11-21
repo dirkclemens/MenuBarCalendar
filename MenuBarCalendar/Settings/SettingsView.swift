@@ -11,6 +11,8 @@ struct SettingsView: View {
     @AppStorage("showNextEventInMenuBar") private var showNextEventInMenuBar = true
     @AppStorage("eventsListDaysRange") private var eventsListDaysRange = 7
     @AppStorage("showReminders") private var showReminders = true
+    @AppStorage("showAllDayEventsInMenuBar") private var showAllDayEventsInMenuBar = false
+    @State private var launchAtLogin = AppDelegate.instance?.isLaunchOnLoginEnabled() ?? false
 
     var body: some View {
         Form {
@@ -46,10 +48,14 @@ struct SettingsView: View {
             }
             
             Section(NSLocalizedString("SettingsGeneral", comment: "")) {
-                Toggle(NSLocalizedString("LaunchAtLoginMenuTitle", comment: ""), isOn: Binding(
-                    get: { AppDelegate.instance.isLaunchOnLoginEnabled() },
-                    set: { _ in AppDelegate.instance.toggleLaunchOnLogin() }
-                ))
+                Toggle(NSLocalizedString("LaunchAtLoginMenuTitle", comment: ""), isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, enabled in
+                        guard let appDelegate = AppDelegate.instance,
+                              appDelegate.isLaunchOnLoginEnabled() != enabled else { return }
+                        appDelegate.setLaunchOnLogin(enabled: enabled)
+                        // Reflect the real state if registration failed or needs approval.
+                        launchAtLogin = appDelegate.isLaunchOnLoginEnabled()
+                    }
                 
                 Stepper(value: $eventsListDaysRange, in: 1...30, step: 1) {
                     Text(String(
@@ -58,21 +64,15 @@ struct SettingsView: View {
                     ))
                 }
                 .onChange(of: eventsListDaysRange) { _, _ in
-                    calendarManager.fetchEvents()
+                    calendarManager.refreshVisibleContent(force: false)
                 }
                 
-                Toggle(NSLocalizedString("SettingsShowNextEvent", comment: ""), isOn: Binding(
-                    get: { UserDefaults.standard.object(forKey: "showNextEventInMenuBar") as? Bool ?? true },
-                    set: { UserDefaults.standard.set($0, forKey: "showNextEventInMenuBar") }
-                ))
+                Toggle(NSLocalizedString("SettingsShowNextEvent", comment: ""), isOn: $showNextEventInMenuBar)
                 if showNextEventInMenuBar {
-                    Toggle(NSLocalizedString("SettingsShowAllDayEvents", comment: ""), isOn: Binding(
-                        get: { UserDefaults.standard.bool(forKey: "showAllDayEventsInMenuBar") },
-                        set: {
-                            UserDefaults.standard.set($0, forKey: "showAllDayEventsInMenuBar")
+                    Toggle(NSLocalizedString("SettingsShowAllDayEvents", comment: ""), isOn: $showAllDayEventsInMenuBar)
+                        .onChange(of: showAllDayEventsInMenuBar) { _, _ in
                             calendarManager.refreshNextEvent()
                         }
-                    ))
                 }
             }
             

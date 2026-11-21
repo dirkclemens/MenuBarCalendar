@@ -8,6 +8,7 @@ struct DayCellView: View {
     let date: Date
     @ObservedObject var calendarManager: CalendarManager
     let isHovered: Bool
+    var showReminders: Bool = true
 
     private var isToday: Bool {
         Calendar.current.isDateInToday(date)
@@ -59,7 +60,7 @@ struct DayCellView: View {
 
             VStack(spacing: 2) {
                 EventDotsView(colors: calendarManager.eventDots(for: date))
-                ReminderDotsView(colors: calendarManager.reminderDots(for: date))
+                ReminderDotsView(colors: showReminders ? calendarManager.reminderDots(for: date) : [])
             }
         }
         .frame(height: 38)
