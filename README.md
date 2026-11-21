@@ -1,6 +1,6 @@
 # MenuBarCalendar
 
-MenuBarCalendar is a lightweight macOS menu bar app that puts a full month calendar and your upcoming Calendar.app events one click away. It reads your existing Apple Calendar accounts read-only, highlights today and weekends, shows a colour dot per calendar for each day with events, and lists upcoming events with automatic scrolling to the current or next entry. Tapping an event opens it directly in Apple Calendar.
+MenuBarCalendar is a lightweight macOS menu bar app that puts a full month calendar and your upcoming Calendar.app events one click away. It reads your existing Apple Calendar accounts, highlights today and weekends, shows a colour dot per calendar for each day with events, and lists upcoming events and reminders with automatic scrolling to the current or next entry. Tapping an event opens it directly in Apple Calendar.
 
 ![Swift](https://img.shields.io/badge/Swift-5.9%2B-orange)
 ![SwiftUI](https://img.shields.io/badge/SwiftUI-native-green)
@@ -19,9 +19,13 @@ MenuBarCalendar is a lightweight macOS menu bar app that puts a full month calen
 - 🎯 **Today highlighted** with accent colour; selected day with outline
 - 🔴 **Weekend dates** in red
 - 🟢 **Event dots** per calendar colour (up to 3 per day)
-- 📋 **Upcoming events list** — scrolls to current or next event automatically
+- 📋 **Upcoming events list** — scrolls to current or next event automatically; multi-day events appear on every day
 - 🗓 **Opens Apple Calendar** on event tap
-- ⚙️ **Settings** — select which calendars to show, toggle launch at login
+- ✅ **Reminders** with due dates — tick them off right in the list, tap to open in Reminders
+- ⏱ **Next event in the menu bar** (optional), updated every minute
+- 🔄 **Live updates** — changes from Calendar, Reminders or iCloud appear immediately
+- ⬆️ **Update hint** — shows when a newer version is available
+- ⚙️ **Settings** — select which calendars and reminder lists to show, toggle launch at login
 - 🌍 **Localised** — English and German (follows system language)
 - 🌙 **Midnight refresh** — icon and selected date always show today
 - 🚀 **Launch at Login** support via `SMAppService`
@@ -33,9 +37,9 @@ MenuBarCalendar is a lightweight macOS menu bar app that puts a full month calen
 
 | | |
 |---|---|
-| macOS | 14.0 Sonoma or later |
+| macOS | 26 Tahoe or later |
 | Architecture | Apple Silicon only |
-| Xcode | 15 or later |
+| Xcode | 26 or later |
 | Swift | 5.9 or later |
 
 ---
@@ -55,9 +59,9 @@ MenuBarCalendar is a lightweight macOS menu bar app that puts a full month calen
 
 ### Calendar permission
 
-On first launch macOS will ask for **Calendar access**. You can also grant it manually in:
+On first launch macOS will ask for **Calendar** and **Reminders** access. You can also grant it manually in:
 
-> System Settings → Privacy & Security → Calendars → MenuBarCalendar ✓
+> System Settings → Privacy & Security → Calendars / Reminders → MenuBarCalendar ✓
 
 ### Prebuilt DMG
 
@@ -75,30 +79,49 @@ Alternatively, right-click the app in Finder and choose "Open".
 
 ```
 MenuBarCalendar/
-├── AppDelegate.swift                    # App lifecycle, midnight icon timer, launch at login
-├── CalendarManager.swift                # EventKit access, event fetching, calendar state
+├── AppDelegate.swift                    # App lifecycle, timers, day/time-zone changes, launch at login
+├── AppEnvironment.swift                 # Detects unit-test runs
+├── CalendarManager.swift                # EventKit access, event/reminder fetching, calendar state
+├── Formatters.swift                     # Shared, cached date formatters
 ├── MenuBarCalendar.swift                # @main App entry point, MenuBarExtra
+├── UpdateChecker.swift                  # Daily "newer version available" check
 ├── Views/
+│   ├── ContentView.swift                # Popover root (calendar / settings pages, footer)
 │   ├── CalendarView.swift               # Root view
 │   ├── CalendarNavigationView.swift     # Month header + prev/today/next buttons
 │   ├── CalendarGridView.swift           # Week grid with day cells
 │   ├── DayCellView.swift                # Individual day cell
 │   ├── WeekNumberView.swift             # ISO week number column
 │   ├── EventDotsView.swift              # Coloured event dot indicators
+│   ├── ReminderDotsView.swift           # Outlined reminder dot indicators
 │   ├── EventsListView.swift             # Scrollable upcoming events list
-│   ├── DaySectionView.swift             # Day group header + event rows
-│   ├── EventRowView.swift               # Single event row with time and video indicator
+│   ├── DaySectionView.swift             # Day group header + event and reminder rows
+│   ├── EventRowView.swift               # Single event row with time
+│   ├── ReminderRowView.swift            # Single reminder row (complete / open in Reminders)
 │   ├── NoAccessView.swift               # Shown when calendar access is denied
 │   ├── EmptyEventsView.swift            # Shown when no upcoming events
-│   └── CalendarToolBarView.swift        # Bottom bar (Settings / Quit)
+│   └── UpdateBadgeView.swift            # Footer hint for a newer version
 ├── Settings/
 │   ├── SettingsView.swift               # Settings form
 │   ├── CalendarsListView.swift          # Grouped calendar list
 │   ├── CalendarSelectionView.swift      # Single calendar toggle row
+│   ├── ReminderListsView.swift          # Reminder list toggles
 │   └── SettingsRowView.swift            # Generic settings row with icon + chevron
 ├── en.lproj/Localizable.strings
 └── de.lproj/Localizable.strings
+MenuBarCalendarTests/
+└── MenuBarCalendarTests.swift           # Unit tests (Swift Testing)
 ```
+
+## Tests
+
+Run the unit tests in Xcode with `⌘U`, or from the command line:
+
+```bash
+xcodebuild test -project MenuBarCalendar.xcodeproj -scheme MenuBarCalendar -destination 'platform=macOS'
+```
+
+They cover the day index (multi-day and overnight events), the month grid and ISO week numbers, reminder due dates, the migration of the calendar selection and the update check. No calendar permission is needed.
 
 ## Localisation
 
@@ -110,7 +133,9 @@ The app ships with **English** and **German**. To add another language:
 
 ## Privacy
 
-MenuBarCalendar requests **read-only** access to your calendars (`NSCalendarsUsageDescription`). No data leaves your device.
+MenuBarCalendar reads your calendars and reminders via EventKit. It only writes when you tick off a reminder (marks it as completed). Calendar and reminder data never leave your device.
+
+At launch and then once a day the app asks `https://api.adcore.de/apps/check.php` whether a newer version exists. This request contains only the app name, app version, macOS version and CPU architecture — no personal or calendar data.
 
 ## Credits
 
