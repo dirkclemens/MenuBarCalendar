@@ -20,6 +20,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         scheduleIconUpdate()
         scheduleEventRefresh()
         scheduleNextEventUpdates()
+        UpdateChecker.shared.start()
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
             selector: #selector(systemDidWake),

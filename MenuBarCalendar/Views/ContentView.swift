@@ -7,6 +7,7 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var calendarManager: CalendarManager
+    @ObservedObject private var updateChecker = UpdateChecker.shared
     
     private enum Page: Int, CaseIterable {
         case calendar
@@ -55,6 +56,10 @@ struct ContentView: View {
             Divider().frame(height: 1).background(Color.secondary.opacity(0.2))
 
             HStack() {
+                if let update = updateChecker.availableUpdate {
+                    UpdateBadgeView(update: update)
+                }
+
                 Spacer()
 
                 Button(action: { NSApp.terminate(nil) }) {

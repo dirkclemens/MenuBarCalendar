@@ -12,10 +12,6 @@ struct MenuBarCalendarApp: App {
     @StateObject private var calendarManager = CalendarManager.shared
     @AppStorage("showNextEventInMenuBar") private var showNextEventInMenuBar = true
 
-    init() {
-        UpdateChecker.checkForUpdate()
-    }
-
     var body: some Scene {
         MenuBarExtra {
             ContentView(calendarManager: calendarManager)
