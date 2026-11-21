@@ -11,8 +11,11 @@ struct DaySectionView: View {
     let dateLabel: String
     let events: [EKEvent]
     let reminders: [EKReminder]
+    let onCompleteReminder: (EKReminder) -> Bool
 
-    init(day: Date, dayLabel: String, dateLabel: String, events: [EKEvent], reminders: [EKReminder] = []) {
+    init(day: Date, dayLabel: String, dateLabel: String, events: [EKEvent], reminders: [EKReminder] = [],
+         onCompleteReminder: @escaping (EKReminder) -> Bool = { _ in false }) {
+        self.onCompleteReminder = onCompleteReminder
         self.day = day
         self.dayLabel = dayLabel
         self.dateLabel = dateLabel
@@ -41,7 +44,7 @@ struct DaySectionView: View {
             }
             
             ForEach(reminders, id: \.calendarItemIdentifier) { reminder in
-                ReminderRowView(reminder: reminder)
+                ReminderRowView(reminder: reminder, onComplete: onCompleteReminder)
             }
         }
     }

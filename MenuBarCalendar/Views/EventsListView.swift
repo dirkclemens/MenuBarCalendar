@@ -79,10 +79,15 @@ struct EventsListView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    if !calendarManager.hasAccess && !calendarManager.hasRemindersAccess {
-                        NoAccessView()
-                    } else if groups.isEmpty {
-                        EmptyEventsView()
+                    // Without calendar access show a hint — compact when reminders are still listed below.
+                    if !calendarManager.hasAccess {
+                        NoAccessView(compact: !groups.isEmpty)
+                    }
+
+                    if groups.isEmpty {
+                        if calendarManager.hasAccess {
+                            EmptyEventsView()
+                        }
                     } else {
                         ForEach(groups) { group in
                             DaySectionView(
@@ -90,7 +95,8 @@ struct EventsListView: View {
                                 dayLabel: group.dayLabel,
                                 dateLabel: group.dateLabel,
                                 events: group.events,
-                                reminders: group.reminders
+                                reminders: group.reminders,
+                                onCompleteReminder: { calendarManager.completeReminder($0) }
                             )
                             .id(group.id)
                         }
