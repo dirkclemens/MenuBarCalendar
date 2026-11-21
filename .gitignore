@@ -9,3 +9,13 @@
 landing.html
 /ignore/
 !screenshot.jpg
+
+# Build products
+/MenuBarCalendar.app/
+/build/
+DerivedData/
+
+# Xcode per-user state
+xcuserdata/
+*.xcuserstate
+.DS_Store
