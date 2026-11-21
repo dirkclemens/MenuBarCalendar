@@ -32,7 +32,7 @@ final class UpdateChecker: ObservableObject {
 
     /// Checks now and schedules a daily re-check (menu bar apps often run for weeks).
     func start() {
-        guard timer == nil else { return }
+        guard timer == nil, !AppEnvironment.isRunningTests else { return }
         checkForUpdate()
         let timer = Timer(timeInterval: Self.checkInterval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.checkForUpdate() }
