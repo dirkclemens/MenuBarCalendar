@@ -314,6 +314,22 @@ class CalendarManager: ObservableObject {
         reminders = sorted
     }
 
+    /// Marks a reminder as completed in the Reminders database and removes it
+    /// from the list right away. Returns false if saving failed.
+    @discardableResult
+    func completeReminder(_ reminder: EKReminder) -> Bool {
+        reminder.isCompleted = true
+        do {
+            try eventStore.save(reminder, commit: true)
+        } catch {
+            reminder.isCompleted = false
+            NSLog("Failed to complete reminder: \(error.localizedDescription)")
+            return false
+        }
+        setReminders(reminders.filter { $0.calendarItemIdentifier != reminder.calendarItemIdentifier })
+        return true
+    }
+
     private func clearEvents() {
         events = []
         eventsByDay = [:]

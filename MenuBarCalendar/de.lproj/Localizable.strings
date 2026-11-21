@@ -21,3 +21,5 @@
 "SettingsShowReminders" = "Erinnerungen anzeigen";
 "SettingsRemindersPrivacy" = "Erinnerungen-Datenschutzeinstellungen";
 "UntitledReminder" = "Ohne Titel";
+
+"MarkReminderCompleted" = "Als erledigt markieren";
