@@ -1,6 +1,3 @@
-"WeekNumberHeader" = "Wk";
-"WindowStaysOpenHelp" = "Window stays open";
-"WindowClosesOnBlurHelp" = "Window closes on blur";
 "CalendarAccessRequired" = "Calendar access required";
 "OpenSystemSettings" = "Open System Settings";
 "NoUpcomingEvents" = "No upcoming events";
@@ -9,10 +6,8 @@
 "SettingsEvents" = "Events";
 "SettingsCalendarPrivacy" = "Calendar Privacy Settings";
 "SettingsGeneral" = "General";
-"SettingsKeepWindowOpen" = "Keep Window Open";
 "DayLabelToday" = "Today";
 "DayLabelTomorrow" = "Tomorrow";
-"SettingsMenuTitle" = "Settings…";
 "LaunchAtLoginMenuTitle" = "Launch at Login";
 "QuitMenuTitle" = "Quit";
 "CalendarAccessibilityLabel" = "%@ calendar";

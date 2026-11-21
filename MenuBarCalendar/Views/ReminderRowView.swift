@@ -8,18 +8,10 @@ import EventKit
 struct ReminderRowView: View {
     let reminder: EKReminder
     
+    /// Due time, or nil for reminders due on a day without a time (previously shown as "0:00").
     private var timeLabel: String? {
-        guard let components = reminder.dueDateComponents else { return nil }
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        if let format = DateFormatter.dateFormat(fromTemplate: "j:mm", options: 0, locale: Locale.current) {
-            formatter.dateFormat = format
-        } else {
-            formatter.dateFormat = "HH:mm"
-        }
-        let cal = Calendar.current
-        let date = cal.date(from: components) ?? Date()
-        return formatter.string(from: date)
+        guard reminder.hasDueTime, let date = reminder.dueDate else { return nil }
+        return Formatters.time.string(from: date)
     }
     
     var body: some View {
@@ -30,12 +22,10 @@ struct ReminderRowView: View {
                 .font(.system(size: 10))
                 .foregroundColor(reminderColor)
             
-            if let time = timeLabel {
-                Text(time)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .frame(width: 50, alignment: .leading)
-            }
+            Text(timeLabel ?? "")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+                .frame(width: 50, alignment: .leading)
             
             Text(reminder.title ?? NSLocalizedString("UntitledReminder", comment: ""))
                 .font(.system(size: 12))

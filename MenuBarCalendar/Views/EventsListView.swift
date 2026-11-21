@@ -18,26 +18,37 @@ struct EventsListView: View {
         let reminders: [EKReminder]
     }
 
-    private var groupedEvents: [DayGroup] {
+    /// Scroll target: the day section and the row of the running or next event.
+    private struct ScrollTarget {
+        let groupID: Date
+        let rowID: String
+    }
+
+    /// Unique, stable id for an event row. `eventIdentifier` alone is not unique:
+    /// all occurrences of a recurring event share it, and multi-day events appear on several days.
+    static func rowID(day: Date, event: EKEvent) -> String {
+        "\(day.timeIntervalSinceReferenceDate)|\(event.eventIdentifier ?? event.calendarItemIdentifier)|\(event.startDate.timeIntervalSinceReferenceDate)"
+    }
+
+    private func makeGroups() -> [DayGroup] {
         var result: [DayGroup] = []
         let calendar = Calendar.current
-        var currentDate = calendarManager.selectedDate
-        let days = max(1, eventsListDaysRange)
-        let endDate = calendar.date(byAdding: .day, value: days, to: currentDate)!
+        var currentDate = calendar.startOfDay(for: calendarManager.selectedDate)
 
-        while currentDate < endDate {
+        for _ in 0..<max(1, eventsListDaysRange) {
             let dayEvents = calendarManager.events(for: currentDate)
             let dayReminders = showReminders ? calendarManager.reminders(for: currentDate) : []
             if !dayEvents.isEmpty || !dayReminders.isEmpty {
                 result.append(DayGroup(
                     id: currentDate,
                     dayLabel: dayLabelFor(date: currentDate),
-                    dateLabel: dateLabelFor(date: currentDate),
+                    dateLabel: Formatters.longDate.string(from: currentDate),
                     events: dayEvents,
                     reminders: dayReminders
                 ))
             }
-            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
+            guard let next = calendar.date(byAdding: .day, value: 1, to: currentDate) else { break }
+            currentDate = next
         }
         return result
     }
@@ -49,49 +60,33 @@ struct EventsListView: View {
         } else if calendar.isDateInTomorrow(date) {
             return NSLocalizedString("DayLabelTomorrow", comment: "")
         } else {
-            let formatter = DateFormatter()
-            formatter.locale = Locale.current
-            formatter.dateFormat = "EEEE"
-            return formatter.string(from: date)
+            return Formatters.weekday.string(from: date)
         }
     }
 
-    private func dateLabelFor(date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateStyle = .long
-        return formatter.string(from: date)
-    }
-
-    private var targetGroupId: Date? {
+    private func scrollTarget(in groups: [DayGroup]) -> ScrollTarget? {
         let now = Date()
-        let allEvents = groupedEvents.flatMap { $0.events }
-        let targetEvent = allEvents.first(where: { $0.startDate <= now && $0.endDate > now })
-            ?? allEvents.first(where: { $0.startDate > now })
-        guard let target = targetEvent else { return nil }
-        return groupedEvents.first(where: { group in
-            group.events.contains { $0.eventIdentifier == target.eventIdentifier }
-        })?.id
-    }
-
-    private var targetEventId: String? {
-        let now = Date()
-        let allEvents = groupedEvents.flatMap { $0.events }
-        return allEvents.first(where: { $0.startDate <= now && $0.endDate > now })?.eventIdentifier
-            ?? allEvents.first(where: { $0.startDate > now })?.eventIdentifier
+        let candidates = groups.flatMap { group in group.events.map { (group.id, $0) } }
+        guard let (groupID, event) = candidates.first(where: { $0.1.startDate <= now && $0.1.endDate > now })
+                ?? candidates.first(where: { $0.1.startDate > now }) else { return nil }
+        return ScrollTarget(groupID: groupID, rowID: Self.rowID(day: groupID, event: event))
     }
 
     var body: some View {
+        // Computed once per render (was previously recomputed three times).
+        let groups = makeGroups()
+
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if !calendarManager.hasAccess && !calendarManager.hasRemindersAccess {
                         NoAccessView()
-                    } else if groupedEvents.isEmpty {
+                    } else if groups.isEmpty {
                         EmptyEventsView()
                     } else {
-                        ForEach(groupedEvents) { group in
+                        ForEach(groups) { group in
                             DaySectionView(
+                                day: group.id,
                                 dayLabel: group.dayLabel,
                                 dateLabel: group.dateLabel,
                                 events: group.events,
@@ -104,24 +99,22 @@ struct EventsListView: View {
             }
             .padding(.vertical, 8)
             .frame(maxHeight: 400)
-            .onAppear { scrollToCurrentEvent(proxy: proxy) }
+            .onAppear { scrollToCurrentEvent(proxy: proxy, target: scrollTarget(in: groups)) }
             .onChange(of: calendarManager.scrollToCurrentEventTrigger) { _, _ in
-                scrollToCurrentEvent(proxy: proxy)
+                scrollToCurrentEvent(proxy: proxy, target: scrollTarget(in: makeGroups()))
             }
         }
     }
 
-    private func scrollToCurrentEvent(proxy: ScrollViewProxy) {
+    private func scrollToCurrentEvent(proxy: ScrollViewProxy, target: ScrollTarget?) {
+        guard let target else { return }
         // Step 1: scroll the day section header into view instantly
-        if let groupId = targetGroupId {
-            proxy.scrollTo(groupId, anchor: .top)
-        }
+        proxy.scrollTo(target.groupID, anchor: .top)
         // Step 2: after the header is rendered, animate to the target event
         // using a top-biased anchor so the day header remains visible above it
-        guard let eventId = targetEventId else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
             withAnimation(.easeInOut(duration: 0.4)) {
-                proxy.scrollTo(eventId, anchor: UnitPoint(x: 0.5, y: 0.15))
+                proxy.scrollTo(target.rowID, anchor: UnitPoint(x: 0.5, y: 0.15))
             }
         }
     }

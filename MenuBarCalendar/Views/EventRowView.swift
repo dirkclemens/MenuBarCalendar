@@ -19,9 +19,7 @@ struct EventRowView: View {
 
     private var timeString: String {
         if event.isAllDay { return "" }
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateFormat = DateFormatter.dateFormat(fromTemplate: "j:mm", options: 0, locale: Locale.current)
+        let formatter = Formatters.time
         return "\(formatter.string(from: event.startDate)) – \(formatter.string(from: event.endDate))"
     }
 

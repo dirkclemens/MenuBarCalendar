@@ -8,29 +8,39 @@ import EventKit
 struct CalendarsListView: View {
     @ObservedObject var calendarManager: CalendarManager
 
-    private var groupedCalendars: [(String, [EKCalendar])] {
-        var groups: [String: [EKCalendar]] = [:]
-        for calendar in calendarManager.calendars {
-            let sourceName = calendar.source.title
-            if groups[sourceName] == nil { groups[sourceName] = [] }
-            groups[sourceName]?.append(calendar)
-        }
-        return groups.sorted { first, second in
-            if first.key.lowercased().contains("icloud") { return true }
-            if second.key.lowercased().contains("icloud") { return false }
-            return first.key < second.key
-        }
+    private struct SourceGroup: Identifiable {
+        let id: String
+        let title: String
+        let calendars: [EKCalendar]
+    }
+
+    /// Calendars grouped by account; iCloud first, then alphabetically.
+    private var groupedCalendars: [SourceGroup] {
+        Dictionary(grouping: calendarManager.calendars) { $0.source.sourceIdentifier }
+            .map { id, calendars in
+                SourceGroup(
+                    id: id,
+                    title: calendars.first?.source.title ?? "",
+                    calendars: calendars.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                )
+            }
+            .sorted { first, second in
+                let firstIsICloud = first.title.localizedCaseInsensitiveContains("icloud")
+                let secondIsICloud = second.title.localizedCaseInsensitiveContains("icloud")
+                if firstIsICloud != secondIsICloud { return firstIsICloud }
+                return first.title.localizedStandardCompare(second.title) == .orderedAscending
+            }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ForEach(groupedCalendars, id: \.0) { sourceName, calendars in
+            ForEach(groupedCalendars) { group in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(sourceName)
+                    Text(group.title)
                         .foregroundColor(.secondary)
 
                     VStack(spacing: 0) {
-                        ForEach(calendars, id: \.calendarIdentifier) { calendar in
+                        ForEach(group.calendars, id: \.calendarIdentifier) { calendar in
                             CalendarSelectionView(
                                 calendar: calendar,
                                 isEnabled: calendarManager.isCalendarEnabled(calendar),

@@ -1,6 +1,3 @@
-"WeekNumberHeader" = "KW";
-"WindowStaysOpenHelp" = "Fenster bleibt geöffnet";
-"WindowClosesOnBlurHelp" = "Fenster schließt bei Fokusverlust";
 "CalendarAccessRequired" = "Kalenderzugriff erforderlich";
 "OpenSystemSettings" = "Systemeinstellungen öffnen";
 "NoUpcomingEvents" = "Keine anstehenden Ereignisse";
@@ -9,10 +6,8 @@
 "SettingsEvents" = "Ereignisse";
 "SettingsCalendarPrivacy" = "Kalender-Datenschutzeinstellungen";
 "SettingsGeneral" = "Allgemein";
-"SettingsKeepWindowOpen" = "Fenster geöffnet lassen";
 "DayLabelToday" = "Heute";
 "DayLabelTomorrow" = "Morgen";
-"SettingsMenuTitle" = "Einstellungen…";
 "LaunchAtLoginMenuTitle" = "Beim Anmelden starten";
 "QuitMenuTitle" = "Beenden";
 "CalendarAccessibilityLabel" = "Kalender %@";
