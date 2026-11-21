@@ -88,6 +88,8 @@ class CalendarManager: ObservableObject {
             .sink { [weak self] _ in self?.eventStoreDidChange() }
             .store(in: &cancellables)
 
+        // Unit tests run inside the app; don't trigger permission prompts there.
+        guard !AppEnvironment.isRunningTests else { return }
         handleAuthorization()
         handleRemindersAuthorization()
     }
