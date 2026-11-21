@@ -8,6 +8,7 @@ import EventKit
 
 struct SettingsView: View {
     @ObservedObject var calendarManager: CalendarManager
+    @ObservedObject private var updateChecker = UpdateChecker.shared
     @AppStorage("showNextEventInMenuBar") private var showNextEventInMenuBar = true
     @AppStorage("eventsListDaysRange") private var eventsListDaysRange = 7
     @AppStorage("showReminders") private var showReminders = true
@@ -86,6 +87,21 @@ struct SettingsView: View {
                         }
                     }
                 )
+            }
+
+            Section(NSLocalizedString("SettingsAbout", comment: "")) {
+                LabeledContent(NSLocalizedString("SettingsVersion", comment: ""), value: UpdateChecker.currentVersion)
+                if let update = updateChecker.availableUpdate {
+                    HStack {
+                        Text(String(format: NSLocalizedString("UpdateAvailableFormat", comment: ""), update.version))
+                        Spacer()
+                        if let url = update.downloadURL {
+                            Button(NSLocalizedString("UpdateDownload", comment: "")) {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                    }
+                }
             }
         }
         .formStyle(.grouped)

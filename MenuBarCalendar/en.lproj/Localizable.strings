@@ -23,3 +23,11 @@
 "UntitledReminder" = "Untitled";
 
 "MarkReminderCompleted" = "Mark as completed";
+
+"SettingsAbout" = "About";
+
+"SettingsVersion" = "Version";
+
+"UpdateAvailableFormat" = "Version %@ available";
+
+"UpdateDownload" = "Download";
