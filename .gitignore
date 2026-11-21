@@ -19,3 +19,6 @@ DerivedData/
 xcuserdata/
 *.xcuserstate
 .DS_Store
+
+# Local release script (not part of the repo)
+build-release.zsh
