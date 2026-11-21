@@ -65,7 +65,9 @@ On first launch macOS will ask for **Calendar** and **Reminders** access. You ca
 
 ### Prebuilt DMG
 
-A ready-to-run build is available as `MenuBarCalendar.dmg` (ad-hoc signed, Apple Silicon only). Since it isn't notarized by Apple, macOS blocks it on first launch. Remove the quarantine flag before opening:
+A ready-to-run build is available on the [Releases](https://github.com/dirkclemens/MenuBarCalendar/releases/latest) page
+as `MenuBarCalendar.dmg` (ad-hoc signed, Apple Silicon only). Since it isn't notarized by Apple, macOS blocks it
+on first launch. Remove the quarantine flag before opening:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/MenuBarCalendar.app
